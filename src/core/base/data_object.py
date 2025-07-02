@@ -24,5 +24,5 @@ class DataObject(BaseModel):
         now = time.time()
         self.created_at = data.get("created_at", now)
         self.updated_at = data.get("updated_at", now)
-        self.commit_at = 0
+        self.commit_at = data.get("commit_at", now)
         logger.debug(f"Creating data object: {self} for {self.__class__.__name__} class")

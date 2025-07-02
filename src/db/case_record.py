@@ -1,12 +1,11 @@
+import logging
 import time
 import uuid
-import logging
 from sqlite3 import Cursor, Connection
-from typing import Optional, List, ClassVar, Dict, Type, Any
+from typing import Optional, Dict, Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
-from src.core.base.data_field import DataField
 from src.core.objects.case import Case
 
 logging.basicConfig()
@@ -47,10 +46,15 @@ class CaseRecord(BaseModel):
         return f'id, case_number, owner_id, summary, description, created_at, updated_at, commit_at'
 
     @classmethod
+    def get_last_case_number_query(cls) -> str:
+        query = f"SELECT MAX(CAST(case_number AS INTEGER)) AS max_case_number FROM {CaseRecord.table_name()}"
+        return query
+
+    @classmethod
     def from_object(cls, obj: Case) -> "CaseRecord":
         return CaseRecord(
             id=str(obj.id),
-            owner_id=obj.owner_id,
+            owner_id=str(obj.owner_id),
             case_number=obj.case_number,
             summary=obj.summary,
             description=obj.description,
@@ -76,21 +80,22 @@ class CaseRecord(BaseModel):
         now = time.time()
         self.created_at = data.get("created_at", now)
         self.updated_at = data.get("updated_at", now)
-        self.commit_at = 0
+        self.commit_at = data.get("commit_at", now)
         logger.debug(f"Creating case record: {self}")
 
     def insert_to_db(self, conn: Connection, cursor: Cursor):
         now = time.time()
+        self.commit_at = now
         query = f"INSERT INTO {CaseRecord.table_name()} ({CaseRecord.table_fields()}) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
         logger.debug(f'Running SQL query "{query}"')
         cursor.execute(
             query,
             (self.id, self.case_number, self.owner_id, self.summary, self.description, self.created_at, self.updated_at,
-             now)
+             self.commit_at)
         )
         conn.commit()
 
-    def read_from_db_row(self, row: Dict[str, Any]):
+    def read_from_db_row(self, row: Dict[str, Any]) -> None:
         self.id = str(row["id"])
         self.owner_id = str(row["owner_id"])
         self.case_number = str(row["case_number"])
@@ -100,7 +105,7 @@ class CaseRecord(BaseModel):
         self.updated_at = float(row["updated_at"])
         self.commit_at = float(row["commit_at"])
 
-    def read_from_object(self, obj: Case):
+    def read_from_object(self, obj: Case) -> None:
         self.id = str(obj.id)
         self.case_number = obj.case_number
         self.summary = obj.summary
@@ -112,6 +117,7 @@ class CaseRecord(BaseModel):
     def convert_to_object(self) -> Case:
         obj: Case = Case(
             id=uuid.UUID(self.id),
+            owner_id=uuid.UUID(self.owner_id),
             case_number=self.case_number,
             summary=self.summary,
             description=self.description,
