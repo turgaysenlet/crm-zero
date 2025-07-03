@@ -19,7 +19,8 @@ class Profile(DataObject):
         return []
 
     def __init__(self, **data):
-        super().__init__(name=data["name"],
+        super().__init__(id=data["id"],
+                         name=data["name"],
                          access_rules=data["access_rules"],
                          fields=Profile.get_custom_fields())
         logger.debug(f"Creating profile: {self}")

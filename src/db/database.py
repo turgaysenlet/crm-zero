@@ -1,17 +1,15 @@
 import logging
-import uuid
-import time
+import sqlite3
 from pathlib import Path
 from sqlite3 import Connection, Cursor
-from typing import Optional, Type, List
+from typing import Optional, List
 
 from pydantic import BaseModel, ConfigDict
-import sqlite3
-import json
 
 from src.core.access.access_rule import AccessRule
 from src.core.access.user import User
 from src.core.base.data_object import DataObject
+from src.db.account_record import AccountRecord
 from src.db.case_record import CaseRecord
 from src.db.profile_record import ProfileRecord
 from src.db.user_record import UserRecord
@@ -58,6 +56,7 @@ class Database(BaseModel):
         self.connect()
 
         # Create tables
+        self.create_table(AccountRecord.table_definition())
         self.create_table(CaseRecord.table_definition())
         self.create_table(UserRecord.table_definition())
         self.create_table(ProfileRecord.table_definition())
@@ -65,9 +64,9 @@ class Database(BaseModel):
         self.conn.commit()
         self.conn.close()
 
-    def create_table(self, cases_table):
+    def create_table(self, table_name):
         self.cursor.execute(f'''
-            CREATE TABLE IF NOT EXISTS {cases_table}
+            CREATE TABLE IF NOT EXISTS {table_name}
         ''')
 
     def list_table_rows(self, table_name: str, where: Optional[str] = None) -> [dict]:
@@ -123,6 +122,33 @@ class Database(BaseModel):
             logger.error(f"Error listing table '{CaseRecord.table_name()}': {e}")
             return max_case_number
 
+    def read_max_account_number(self) -> int:
+        max_account_number: int = 0
+        if not self.conn:
+            logger.error("Database connection not established. Cannot list table.")
+            return max_account_number
+
+        try:
+            query = AccountRecord.get_last_account_number_query()
+            logger.debug(f'Running SQL query "{query}"')
+            self.cursor.execute(query)
+            rows = self.cursor.fetchall()
+            logger.debug(f'Received rows: "{rows}"')
+            if len(rows) > 0:
+                row = dict(rows[0])
+                max_account_number_value = row.get("max_account_number", max_account_number)
+                if max_account_number_value is None:
+                    max_account_number_value = max_account_number
+                logger.info(f"Last account number in database is {max_account_number_value}.")
+                return max_account_number_value
+            return max_account_number
+        except sqlite3.OperationalError as e:
+            logger.error(f"Error: Table '{AccountRecord.table_name()}' does not exist or SQL error. {e}")
+            return max_account_number
+        except sqlite3.Error as e:
+            logger.error(f"Error listing table '{AccountRecord.table_name()}': {e}")
+            return max_account_number
+
     def read_objects(self, table_name: str, object_type_str: str, user: Optional[User]) -> [DataObject]:
         """
         Read all records from the specified table, by applying user based access rules.
@@ -141,6 +167,8 @@ class Database(BaseModel):
                 rows = self.list_table_rows(table_name)
                 if object_type_str == "Case":
                     return [CaseRecord.from_db_row(row) for row in rows]
+                elif object_type_str == "Account":
+                    return [AccountRecord.from_db_row(row) for row in rows]
                 logger.warning(
                     f'Unexpected object type "{object_type_str}".')
                 return []

@@ -4,7 +4,9 @@ from src.core.access.access_rule import AccessRule
 from src.core.access.access_type import AccessType
 from src.core.access.profile import Profile
 from src.core.access.user import User
+from src.core.objects.account import Account
 from src.core.objects.case import Case
+from src.db.account_record import AccountRecord
 
 from src.db.database import Database
 from src.db.case_record import CaseRecord
@@ -34,16 +36,35 @@ def main():
     # This is synced once per session, rest is incremented in memory per construction
     Case.last_case_number = db.read_max_case_number()
 
+    # Grab the maximum account number from database
+    # This is synced once per session, rest is incremented in memory per construction
+    Account.last_account_number = db.read_max_account_number()
+
     # Create live objects
+    account_full_access: AccessRule = AccessRule(
+        data_object_type="Account",
+        access_type=AccessType.READ | AccessType.WRITE | AccessType.CREATE | AccessType.DELETE)
     case_full_access: AccessRule = AccessRule(
         data_object_type="Case",
         access_type=AccessType.READ | AccessType.WRITE | AccessType.CREATE | AccessType.DELETE)
+    administrator_profile: Profile = Profile(name="Administrator", access_rules=[account_full_access, case_full_access])
     support_agent_profile: Profile = Profile(name="Support Agent", access_rules=[case_full_access])
     sales_agent_profile: Profile = Profile(name="Sales Agent", access_rules=[])
+    administrator1: User = User(username="admin", fullname="Administrator", profiles=[administrator_profile])
     support_agent_user1: User = User(username="jilljohns", fullname="Jill Johns", profiles=[support_agent_profile])
     sales_agent_user1: User = User(username="jackhills", fullname="Jack Hills", profiles=[sales_agent_profile])
-    case1: Case = Case(owner_id=support_agent_user1.id, summary="Case 1 - Support", description="Case 1 - Description")
-    case2: Case = Case(owner_id=sales_agent_user1.id, summary="Case 2 - Sales", description="Case 2 - Description")
+
+    account1: Account = Account(account_name="Account 1", owner_id=support_agent_user1.id,
+                                description="Account 1 - Description")
+
+    case1: Case = Case(owner_id=support_agent_user1.id, account_id=account1.id,
+                       summary="Case 1 - Support", description="Case 1 - Description")
+    case2: Case = Case(owner_id=sales_agent_user1.id, account_id=account1.id,
+                       summary="Case 2 - Sales", description="Case 2 - Description")
+
+    # Create and write database records for accounts
+    account_record1: AccountRecord = AccountRecord.from_object(account1)
+    account_record1.insert_to_db(db.conn, db.cursor)
 
     # Create and write database records for cases
     case_record1: CaseRecord = CaseRecord.from_object(case1)
@@ -58,10 +79,12 @@ def main():
     profile_record2.insert_or_replace_to_db(db.conn, db.cursor)
 
     # Create and write database records for users, but overwrite if exists
-    user_record1: UserRecord = UserRecord.from_object(support_agent_user1)
+    user_record1: UserRecord = UserRecord.from_object(administrator1)
     user_record1.insert_or_replace_to_db(db.conn, db.cursor)
-    user_record2: UserRecord = UserRecord.from_object(sales_agent_user1)
+    user_record2: UserRecord = UserRecord.from_object(support_agent_user1)
     user_record2.insert_or_replace_to_db(db.conn, db.cursor)
+    user_record3: UserRecord = UserRecord.from_object(sales_agent_user1)
+    user_record3.insert_or_replace_to_db(db.conn, db.cursor)
 
     support_agent_cases = db.read_objects(CaseRecord.table_name(), "Case", support_agent_user1)
     logger.info(f"Cases readable by support agent (total: {len(support_agent_cases)}): "
