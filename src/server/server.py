@@ -49,9 +49,10 @@ class Server:
     def init_db(self):
         # Connect to database
         self.db = Database(db_name="database/crm.db")
+        [db_conn, db_cursor] = self.db.connect()
         # db.delete_if_exists()
-        self.db.init_db_schema()
-        self.db.connect()
+        self.db.init_db_schema(db_conn, db_cursor)
+
 
     def get_cases_api_record(self) -> List[CaseApiRecord]:
         username = "admin"

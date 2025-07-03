@@ -27,20 +27,22 @@ def main():
     # Connect to database
     db: Database = Database(db_name="../database/crm.db")
     # db.delete_if_exists()
-    db.init_db_schema()
-    db.connect()
+    [db_conn, db_cursor] = db.connect()
+    db.init_db_schema(db_conn, db_cursor)
+    # Reconnect after init_db_schema closes the db connection
+    [db_conn, db_cursor] = db.connect()
 
     # Read cases from database
-    rows = db.list_table_rows(CaseRecord.table_name())
+    rows = db.list_table_rows(db_conn, db_cursor, CaseRecord.table_name())
     logger.info(f"Cases rows: {rows}")
 
     # Grab the maximum case number from database
     # This is synced once per session, rest is incremented in memory per construction
-    Case.last_case_number = db.read_max_case_number()
+    Case.last_case_number = db.read_max_case_number(db_conn, db_cursor)
 
     # Grab the maximum account number from database
     # This is synced once per session, rest is incremented in memory per construction
-    Account.last_account_number = db.read_max_account_number()
+    Account.last_account_number = db.read_max_account_number(db_conn, db_cursor)
 
     # Create live objects
     account_full_access: AccessRule = AccessRule(
@@ -74,32 +76,34 @@ def main():
 
     # Create and write database records for accounts
     account_record1: AccountRecord = AccountRecord.from_object(account1)
-    account_record1.insert_to_db(db.conn, db.cursor)
+    account_record1.insert_to_db(db_conn, db_cursor)
 
     # Create and write database records for cases
     case_record1: CaseRecord = CaseRecord.from_object(case1)
-    case_record1.insert_to_db(db.conn, db.cursor)
+    case_record1.insert_to_db(db_conn, db_cursor)
     case_record2: CaseRecord = CaseRecord.from_object(case2)
-    case_record2.insert_to_db(db.conn, db.cursor)
+    case_record2.insert_to_db(db_conn, db_cursor)
 
     # Create and write database records for profiles, but overwrite if exists
-    profile_record1: ProfileRecord = ProfileRecord.from_object(support_agent_profile)
-    profile_record1.insert_or_replace_to_db(db.conn, db.cursor)
-    profile_record2: ProfileRecord = ProfileRecord.from_object(sales_agent_profile)
-    profile_record2.insert_or_replace_to_db(db.conn, db.cursor)
+    profile_record1: ProfileRecord = ProfileRecord.from_object(administrator_profile)
+    profile_record1.insert_or_replace_to_db(db_conn, db_cursor)
+    profile_record2: ProfileRecord = ProfileRecord.from_object(support_agent_profile)
+    profile_record2.insert_or_replace_to_db(db_conn, db_cursor)
+    profile_record3: ProfileRecord = ProfileRecord.from_object(sales_agent_profile)
+    profile_record3.insert_or_replace_to_db(db_conn, db_cursor)
 
     # Create and write database records for users, but overwrite if exists
     user_record1: UserRecord = UserRecord.from_object(administrator1)
-    user_record1.insert_or_replace_to_db(db.conn, db.cursor)
+    user_record1.insert_or_replace_to_db(db_conn, db_cursor)
     user_record2: UserRecord = UserRecord.from_object(support_agent_user1)
-    user_record2.insert_or_replace_to_db(db.conn, db.cursor)
+    user_record2.insert_or_replace_to_db(db_conn, db_cursor)
     user_record3: UserRecord = UserRecord.from_object(sales_agent_user1)
-    user_record3.insert_or_replace_to_db(db.conn, db.cursor)
+    user_record3.insert_or_replace_to_db(db_conn, db_cursor)
 
-    support_agent_cases = db.read_objects(CaseRecord.table_name(), "Case", support_agent_user1)
+    support_agent_cases = db.read_objects(db_conn, db_cursor, CaseRecord.table_name(), "Case", support_agent_user1)
     logger.info(f"Cases readable by support agent (total: {len(support_agent_cases)}): "
                 f"{[str(case) for case in support_agent_cases]}")
-    sales_agent_cases = db.read_objects(CaseRecord.table_name(), "Case", sales_agent_user1)
+    sales_agent_cases = db.read_objects(db_conn, db_cursor, CaseRecord.table_name(), "Case", sales_agent_user1)
     logger.info(f"Cases readable by sales agent (total: {len(sales_agent_cases)}): "
                 f"{[str(case)  for case in sales_agent_cases]}")
 

@@ -25,26 +25,24 @@ class Database(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)  # Apply this here
 
     db_name: str
-    conn: Optional[Connection] = None  # Connection object
-    cursor: Optional[Cursor] = None  # Cursor object
 
     def __init__(self, **data):
         super().__init__(**data)
         logger.info(f"Initializing database at {self.db_name}")
-        self.connect()
-        self.init_db_schema()
+        [conn, cursor] = self.connect()
+        self.init_db_schema(conn, cursor)
+        conn.close()
 
-    def connect(self) -> Connection:
+    def connect(self) -> [Connection, Cursor]:
         try:
-            self.conn = None
-            self.conn = sqlite3.connect(self.db_name)
-            self.conn.row_factory = sqlite3.Row  # Allows accessing columns by name
-            self.cursor = self.conn.cursor()
+            conn = sqlite3.connect(self.db_name)
+            conn.row_factory = sqlite3.Row  # Allows accessing columns by name
+            cursor = conn.cursor()
             logger.debug(f"Connected to database: {self.db_name}")
         except sqlite3.Error as e:
             logger.error(f"Error connecting to database: {e}")
             raise
-        return self.conn
+        return [conn, cursor]
 
     def delete_if_exists(self) -> None:
         file_path = Path(self.db_name)
@@ -54,37 +52,35 @@ class Database(BaseModel):
         else:
             logger.debug(f'No database to delete: "{self.db_name}"')
 
-    def init_db_schema(self) -> None:
-        self.connect()
-
+    def init_db_schema(self, conn: Connection, cursor: Cursor) -> None:
         # Create tables
-        self.create_table(AccountRecord.table_definition())
-        self.create_table(CaseRecord.table_definition())
-        self.create_table(UserRecord.table_definition())
-        self.create_table(ProfileRecord.table_definition())
+        self.create_table(conn, cursor, AccountRecord.table_definition())
+        self.create_table(conn, cursor, CaseRecord.table_definition())
+        self.create_table(conn, cursor, UserRecord.table_definition())
+        self.create_table(conn, cursor, ProfileRecord.table_definition())
 
-        self.conn.commit()
-        self.conn.close()
+        conn.commit()
+        conn.close()
 
-    def create_table(self, table_name):
-        self.cursor.execute(f'''
+    def create_table(self, conn: Connection, cursor: Cursor, table_name):
+        cursor.execute(f'''
             CREATE TABLE IF NOT EXISTS {table_name}
         ''')
 
-    def get_table_row(self, table_name: str, id: uuid.UUID) -> [dict]:
+    def get_table_row(self, conn: Connection, cursor: Cursor, table_name: str, id: uuid.UUID) -> [dict]:
         """
         Reads one record from the specified table, based on the id field.
         Returns a list of dictionaries, where each dictionary represents a row.
         """
-        if not self.conn:
+        if not conn:
             logger.error("Database connection not established. Cannot list table.")
             return []
 
         try:
             query = f"SELECT * FROM {table_name} WHERE id='{str(id)}'"
             logger.debug(f'Running SQL query "{query}"')
-            self.cursor.execute(query)
-            rows = self.cursor.fetchall()
+            cursor.execute(query)
+            rows = cursor.fetchall()
             logger.debug(f'Received rows: "{rows}"')
             # Convert sqlite3.Row objects to dictionaries for easier handling
             return [dict(row) for row in rows]
@@ -95,12 +91,12 @@ class Database(BaseModel):
             logger.error(f"Error listing table '{table_name}': {e}")
             return []
 
-    def list_table_rows(self, table_name: str, where: Optional[str] = None) -> [dict]:
+    def list_table_rows(self, conn: Connection, cursor: Cursor, table_name: str, where: Optional[str] = None) -> [dict]:
         """
         Lists all records from the specified table.
         Returns a list of dictionaries, where each dictionary represents a row.
         """
-        if not self.conn:
+        if not conn:
             logger.error("Database connection not established. Cannot list table.")
             return []
 
@@ -109,8 +105,8 @@ class Database(BaseModel):
             if where is not None:
                 query = f"{query} WHERE {where}"
             logger.debug(f'Running SQL query "{query}"')
-            self.cursor.execute(query)
-            rows = self.cursor.fetchall()
+            cursor.execute(query)
+            rows = cursor.fetchall()
             logger.debug(f'Received rows: "{rows}"')
             # Convert sqlite3.Row objects to dictionaries for easier handling
             return [dict(row) for row in rows]
@@ -121,17 +117,17 @@ class Database(BaseModel):
             logger.error(f"Error listing table '{table_name}': {e}")
             return []
 
-    def read_max_case_number(self) -> int:
+    def read_max_case_number(self, conn: Connection, cursor: Cursor) -> int:
         max_case_number: int = 0
-        if not self.conn:
+        if not conn:
             logger.error("Database connection not established. Cannot list table.")
             return max_case_number
 
         try:
             query = CaseRecord.get_last_case_number_query()
             logger.debug(f'Running SQL query "{query}"')
-            self.cursor.execute(query)
-            rows = self.cursor.fetchall()
+            cursor.execute(query)
+            rows = cursor.fetchall()
             logger.debug(f'Received rows: "{rows}"')
             if len(rows) > 0:
                 row = dict(rows[0])
@@ -148,17 +144,17 @@ class Database(BaseModel):
             logger.error(f"Error listing table '{CaseRecord.table_name()}': {e}")
             return max_case_number
 
-    def read_max_account_number(self) -> int:
+    def read_max_account_number(self, conn: Connection, cursor: Cursor) -> int:
         max_account_number: int = 0
-        if not self.conn:
+        if not conn:
             logger.error("Database connection not established. Cannot list table.")
             return max_account_number
 
         try:
             query = AccountRecord.get_last_account_number_query()
             logger.debug(f'Running SQL query "{query}"')
-            self.cursor.execute(query)
-            rows = self.cursor.fetchall()
+            cursor.execute(query)
+            rows = cursor.fetchall()
             logger.debug(f'Received rows: "{rows}"')
             if len(rows) > 0:
                 row = dict(rows[0])
@@ -175,20 +171,20 @@ class Database(BaseModel):
             logger.error(f"Error listing table '{AccountRecord.table_name()}': {e}")
             return max_account_number
 
-    def read_objects(self, table_name: str, object_type_str: str, user: Optional[User]) -> [DataObject]:
+    def read_objects(self, conn: Connection, cursor: Cursor, table_name: str, object_type_str: str, user: Optional[User]) -> [DataObject]:
         """
         Read all records from the specified table, by applying user based access rules.
         Returns object of the given type.
         """
-        if not self.conn:
+        if not conn:
             logger.error("Database connection not established. Cannot list table.")
             return []
 
         # Check access
-        allow_access = self.check_access(object_type_str, user)
+        allow_access = self.check_access(conn, cursor, object_type_str, user)
         # Read from DB
         if allow_access:
-            rows = self.list_table_rows(table_name)
+            rows = self.list_table_rows(conn, cursor, table_name)
             if rows is not None and len(rows) > 0:
                 if object_type_str == "Case":
                     return [CaseRecord.from_db_row(row) for row in rows]
@@ -207,20 +203,20 @@ class Database(BaseModel):
                            f'but does not have access.')
             return []
 
-    def read_object_by_id(self, table_name: str, object_type_str: str, object_id: uuid.UUID, user: Optional[User]) \
+    def read_object_by_id(self, conn: Connection, cursor: Cursor, table_name: str, object_type_str: str, object_id: uuid.UUID, user: Optional[User]) \
             -> Any:
         """
         Read all records from the specified table, by applying user based access rules.
         Returns object of the given type.
         """
-        if not self.conn:
+        if not conn:
             logger.error("Database connection not established. Cannot list table.")
             return []
         # Check access
-        allow_access = self.check_access(object_type_str, user)
+        allow_access = self.check_access(conn, cursor, object_type_str, user)
         # Read from DB
         if allow_access:
-            rows = self.get_table_row(table_name)
+            rows = self.get_table_row(conn, cursor, table_name)
             if rows is not None and len(rows) > 0:
                 row = rows[0]
                 if object_type_str == "Case":
@@ -245,19 +241,19 @@ class Database(BaseModel):
                            f'but does not have access.')
             return None
 
-    def get_profiles(self) -> List[Profile]:
+    def get_profiles(self, conn: Connection, cursor: Cursor) -> List[Profile]:
         # TODO: Potential infinite stack due to read_objects calling check_access and check_access calling read_objects.
-        profile_records: List[ProfileRecord] = self.read_objects(ProfileRecord.table_name(), "Profile", None)
+        profile_records: List[ProfileRecord] = self.read_objects(conn, cursor, ProfileRecord.table_name(), "Profile", None)
         profiles: List[Profile] = [profile_record.convert_to_object() for profile_record in profile_records]
         if not profiles:
             return []
         return profiles
 
-    def check_access(self, object_type_str: str, user: User):
+    def check_access(self, conn: Connection, cursor: Cursor, object_type_str: str, user: User):
         allow_access = AccessRule.object_type_accessible_to_all(object_type_str)
         access_rules: List[AccessRule] = []
         if user is not None:
-            all_profiles = self.get_profiles()
+            all_profiles = self.get_profiles(conn, cursor)
             all_profiles_dict = {profile.id: profile for profile in all_profiles}
             for profile_id in user.profiles.object_ids:
                 found_profile = all_profiles_dict[profile_id]
