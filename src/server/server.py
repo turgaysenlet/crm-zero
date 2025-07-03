@@ -1,5 +1,6 @@
 import uuid
-from pathlib import Path
+
+from fastapi import Path as FastAPIPath, Query
 
 from fastapi import FastAPI, APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -54,7 +55,7 @@ class Server:
 
     def get_cases_api_record(self) -> List[CaseApiRecord]:
         username = "admin"
-        user: Optional[User] = await self.get_user(username)
+        user: Optional[User] = self.get_user(username)
         if user is None:
             raise HTTPException(status_code=404, detail=f"User '{username}' not found.")
         else:
@@ -108,10 +109,9 @@ class Server:
                 raise HTTPException(status_code=404, detail=f"No cases found for user '{username}'.")
             return case_api_records
 
-
     async def get_case_by_id_and_user(
             self,
-            case_id: uuid.UUID = Path(..., description="Case ID (UUID)"),
+            case_id: uuid.UUID = FastAPIPath(..., description="Case ID (UUID)"),
             username: str = Query(..., description="Username to check access or ownership")
     ) -> CaseApiRecord:
         user: Optional[User] = await self.get_user(username)
@@ -126,6 +126,24 @@ class Server:
             if not case_api_record:
                 raise HTTPException(status_code=404, detail=f"No case found for user '{username}'.")
             return case_api_record
+
+    async def get_account_by_id_and_user(
+            self,
+            account_id: uuid.UUID = FastAPIPath(..., description="Account ID (UUID)"),
+            username: str = Query(..., description="Username to check access or ownership")
+    ) -> AccountApiRecord:
+        user: Optional[User] = await self.get_user(username)
+        if user is None:
+            raise HTTPException(status_code=404, detail=f"User '{username}' not found.")
+        else:
+            account_record: AccountRecord = self.db.read_object_with_id(AccountRecord.table_name(), "Account", account_id, user)
+            account: Account = account_record.convert_to_object()
+            account_api_record: AccountApiRecord = AccountApiRecord.from_object(account)
+            # Username based filtering
+            # user_accounts = [account for account in DUMMY_ACCOUNTS if account.owner_id == username]
+            if not account_api_record:
+                raise HTTPException(status_code=404, detail=f"No accounts found for user '{username}'.")
+            return account_api_record
 
 
 # Mount the router
