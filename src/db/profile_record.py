@@ -22,6 +22,7 @@ class ProfileRecord(BaseModel):
     created_at: float = 0.0
     updated_at: float = 0.0
     commit_at: float = 0.0
+    object_type_name: str
 
     @classmethod
     def table_name(cls) -> str:
@@ -35,13 +36,14 @@ class ProfileRecord(BaseModel):
                 access_rules TEXT,
                 created_at FLOAT,
                 updated_at FLOAT,
-                commit_at FLOAT             
+                commit_at FLOAT,
+                object_type_name TEXT NOT NULL
             )
         '''
 
     @classmethod
     def table_fields(cls) -> str:
-        return f'id, name, access_rules, created_at, updated_at, commit_at'
+        return f'id, name, access_rules, created_at, updated_at, commit_at, object_type_name'
 
     @classmethod
     def from_json_to_list(cls, profiles_json_str: str):
@@ -69,7 +71,8 @@ class ProfileRecord(BaseModel):
             access_rules=json.dumps([access_rule.to_json_dict() for access_rule in obj.access_rules]),
             created_at=obj.created_at,
             updated_at=obj.updated_at,
-            commit_at=obj.commit_at
+            commit_at=obj.commit_at,
+            object_type_name=obj.object_type_name
         )
 
     @classmethod
@@ -77,10 +80,11 @@ class ProfileRecord(BaseModel):
         return ProfileRecord(
             id=row["id"],
             name=row["name"],
-            access_rules=json.dumps([access_rule.to_json_dict() for access_rule in row.get("access_rules", [])]),
+            access_rules=row.get("access_rules", ""),
             created_at=float(row["created_at"]),
             updated_at=float(row["updated_at"]),
-            commit_at=float(row["commit_at"])
+            commit_at=float(row["commit_at"]),
+            object_type_name=row["object_type_name"]
         )
 
     def __init__(self, **data):
@@ -95,11 +99,12 @@ class ProfileRecord(BaseModel):
         now = time.time()
         self.commit_at = now
         query = f"INSERT INTO {ProfileRecord.table_name()} ({ProfileRecord.table_fields()}) " \
-                f"VALUES (?, ?, ?, ?, ?, ?)"
+                f"VALUES (?, ?, ?, ?, ?, ?, ?)"
         logger.debug(f'Running SQL query "{query}"')
         cursor.execute(
             query,
-            (self.id, self.name, self.access_rules, self.created_at, self.updated_at, self.commit_at)
+            (self.id, self.name, self.access_rules, self.created_at, self.updated_at, self.commit_at,
+             self.object_type_name)
         )
         conn.commit()
 
@@ -107,11 +112,12 @@ class ProfileRecord(BaseModel):
         now = time.time()
         self.commit_at = now
         query = f"INSERT OR REPLACE INTO {ProfileRecord.table_name()} ({ProfileRecord.table_fields()}) " \
-                f"VALUES (?, ?, ?, ?, ?, ?)"
+                f"VALUES (?, ?, ?, ?, ?, ?, ?)"
         logger.debug(f'Running SQL query "{query}"')
         cursor.execute(
             query,
-            (self.id, self.name, self.access_rules, self.created_at, self.updated_at, self.commit_at)
+            (self.id, self.name, self.access_rules, self.created_at, self.updated_at, self.commit_at,
+             self.object_type_name)
         )
         conn.commit()
 
@@ -122,6 +128,7 @@ class ProfileRecord(BaseModel):
         self.created_at = float(row["created_at"])
         self.updated_at = float(row["updated_at"])
         self.commit_at = float(row["commit_at"])
+        self.object_type_name = row["object_type_name"]
 
     def read_from_object(self, obj: Profile) -> None:
         self.id = str(obj.id)
@@ -130,14 +137,18 @@ class ProfileRecord(BaseModel):
         self.created_at = obj.created_at
         self.updated_at = obj.updated_at
         self.commit_at = obj.commit_at
+        self.object_type_name = obj.object_type_name
 
     def convert_to_object(self) -> Profile:
+        access_rules = [AccessRule.from_json_dict(access_rule_dict) for
+                        access_rule_dict in json.loads(self.access_rules or [])]
         obj: Profile = Profile(
             id=uuid.UUID(self.id),
             name=self.name,
-            access_rules=json.loads(self.access_rules or "[]"),
+            access_rules=access_rules,
             created_at=self.created_at,
             updated_at=self.updated_at,
-            commit_at=self.commit_at
+            commit_at=self.commit_at,
+            object_type_name=self.object_type_name
         )
         return obj

@@ -6,6 +6,8 @@ from src.core.access.profile import Profile
 from src.core.access.user import User
 from src.core.objects.account import Account
 from src.core.objects.case import Case
+from src.core.reference.object_reference import ObjectReference
+from src.core.reference.object_reference_list import ObjectReferenceList
 from src.db.account_record import AccountRecord
 
 from src.db.database import Database
@@ -50,17 +52,25 @@ def main():
     administrator_profile: Profile = Profile(name="Administrator", access_rules=[account_full_access, case_full_access])
     support_agent_profile: Profile = Profile(name="Support Agent", access_rules=[case_full_access])
     sales_agent_profile: Profile = Profile(name="Sales Agent", access_rules=[])
-    administrator1: User = User(username="admin", fullname="Administrator", profiles=[administrator_profile])
-    support_agent_user1: User = User(username="jilljohns", fullname="Jill Johns", profiles=[support_agent_profile])
-    sales_agent_user1: User = User(username="jackhills", fullname="Jack Hills", profiles=[sales_agent_profile])
+    administrator1: User = User(username="admin", fullname="Administrator",
+                                profiles=ObjectReferenceList.from_list([administrator_profile]))
+    support_agent_user1: User = User(username="jilljohns", fullname="Jill Johns",
+                                     profiles=ObjectReferenceList.from_list([support_agent_profile]))
+    sales_agent_user1: User = User(username="jackhills", fullname="Jack Hills",
+                                   profiles=ObjectReferenceList.from_list([sales_agent_profile]))
 
-    account1: Account = Account(account_name="Account 1", owner_id=support_agent_user1.id,
+    account1: Account = Account(account_name="Account 1",
+                                owner_id=ObjectReference.from_object(support_agent_user1),
                                 description="Account 1 - Description")
 
-    case1: Case = Case(owner_id=support_agent_user1.id, account_id=account1.id,
-                       summary="Case 1 - Support", description="Case 1 - Description")
-    case2: Case = Case(owner_id=sales_agent_user1.id, account_id=account1.id,
-                       summary="Case 2 - Sales", description="Case 2 - Description")
+    case1: Case = Case(owner_id=ObjectReference.from_object(support_agent_user1),
+                       account_id=ObjectReference.from_object(account1),
+                       summary="Case 1 - Support",
+                       description="Case 1 - Description")
+    case2: Case = Case(owner_id=ObjectReference.from_object(sales_agent_user1),
+                       account_id=ObjectReference.from_object(account1),
+                       summary="Case 2 - Sales",
+                       description="Case 2 - Description")
 
     # Create and write database records for accounts
     account_record1: AccountRecord = AccountRecord.from_object(account1)

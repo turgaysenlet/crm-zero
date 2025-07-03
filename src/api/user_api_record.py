@@ -22,6 +22,7 @@ class UserApiRecord(BaseModel):
     created_at: float = 0.0
     updated_at: float = 0.0
     commit_at: float = 0.0
+    object_type_name: str
 
     @classmethod
     def from_object(cls, obj: User) -> "UserApiRecord":
@@ -33,7 +34,9 @@ class UserApiRecord(BaseModel):
             profile_ids=obj.profiles,
             created_at=obj.created_at,
             updated_at=obj.updated_at,
-            commit_at=obj.commit_at)
+            commit_at=obj.commit_at,
+            object_type_name=obj.object_type_name
+        )
 
     @classmethod
     def from_db_row(cls, row: Dict) -> "UserApiRecord":
@@ -43,9 +46,10 @@ class UserApiRecord(BaseModel):
             fullname=row["fullname"],
             password_hash=row["password_hash"],
             profile_ids=row.get("profile_ids", ""),
-            created_at=row["created_at"],
-            updated_at=row["updated_at"],
-            commit_at=row["commit_at"]
+            created_at=float(row["created_at"]),
+            updated_at=float(row["updated_at"]),
+            commit_at=float(row["commit_at"]),
+            object_type_name=row["object_type_name"]
         )
 
     @classmethod
@@ -69,6 +73,7 @@ class UserApiRecord(BaseModel):
         self.created_at = obj.created_at
         self.updated_at = obj.updated_at
         self.commit_at = obj.commit_at
+        self.object_type_name = obj.object_type_name
 
     def convert_to_object(self) -> User:
         obj: User = User(
@@ -79,6 +84,7 @@ class UserApiRecord(BaseModel):
             description=self.description,
             created_at=self.created_at,
             updated_at=self.updated_at,
-            commit_at=self.commit_at
+            commit_at=self.commit_at,
+            object_type_name=self.object_type_name
         )
         return obj

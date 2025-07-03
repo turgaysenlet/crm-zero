@@ -22,6 +22,7 @@ class CaseApiRecord(BaseModel):
     created_at: float = 0.0
     updated_at: float = 0.0
     commit_at: float = 0.0
+    object_type_name: str
 
     @classmethod
     def from_object(cls, obj: Case) -> "CaseApiRecord":
@@ -34,7 +35,9 @@ class CaseApiRecord(BaseModel):
             description=obj.description,
             created_at=obj.created_at,
             updated_at=obj.updated_at,
-            commit_at=obj.commit_at)
+            commit_at=obj.commit_at,
+            object_type_name=obj.object_type_name
+        )
 
     @classmethod
     def from_db_row(cls, row: Dict) -> "CaseApiRecord":
@@ -45,9 +48,10 @@ class CaseApiRecord(BaseModel):
             account_id=row["account_id"],
             summary=row["summary"],
             description=row.get("description", ""),
-            created_at=row["created_at"],
-            updated_at=row["updated_at"],
-            commit_at=row["commit_at"]
+            created_at=float(row["created_at"]),
+            updated_at=float(row["updated_at"]),
+            commit_at=float(row["commit_at"]),
+            object_type_name=row["object_type_name"]
         )
 
     def __init__(self, **data):
@@ -68,6 +72,7 @@ class CaseApiRecord(BaseModel):
         self.created_at = obj.created_at
         self.updated_at = obj.updated_at
         self.commit_at = obj.commit_at
+        self.object_type_name = obj.object_type_name
 
     def convert_to_object(self) -> Case:
         obj: Case = Case(
@@ -79,6 +84,7 @@ class CaseApiRecord(BaseModel):
             description=self.description,
             created_at=self.created_at,
             updated_at=self.updated_at,
-            commit_at=self.commit_at
+            commit_at=self.commit_at,
+            object_type_name=self.object_type_name
         )
         return obj

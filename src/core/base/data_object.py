@@ -1,7 +1,7 @@
+import logging
 import time
 import uuid
-import logging
-from typing import Optional, List, ClassVar, Dict, Type
+from typing import List
 
 from pydantic import BaseModel, Field
 
@@ -13,11 +13,15 @@ logger.setLevel(logging.DEBUG)
 
 
 class DataObject(BaseModel):
+    # TODO: Find a way to remove duplicate UUID creation for base class
     id: uuid.UUID = Field(default_factory=uuid.uuid4)
     created_at: float = 0.0
     updated_at: float = 0.0
     commit_at: float = 0.0
     custom_fields: List[DataField] = []
+    # Retrieving dynamic type name in Pydantic subclasses is problematic, storing the individual object type name in
+    # instances and the database instead.
+    object_type_name: str
 
     def __init__(self, **data):
         super().__init__(**data)

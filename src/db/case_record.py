@@ -23,6 +23,7 @@ class CaseRecord(BaseModel):
     created_at: float = 0.0
     updated_at: float = 0.0
     commit_at: float = 0.0
+    object_type_name: str
 
     @classmethod
     def table_name(cls) -> str:
@@ -39,13 +40,15 @@ class CaseRecord(BaseModel):
                 description TEXT,
                 created_at FLOAT,
                 updated_at FLOAT,
-                commit_at FLOAT             
+                commit_at FLOAT,
+                object_type_name TEXT NOT NULL
             )
         '''
 
     @classmethod
     def table_fields(cls) -> str:
-        return f'id, case_number, owner_id, account_id, summary, description, created_at, updated_at, commit_at'
+        return f'id, case_number, owner_id, account_id, summary, description, created_at, updated_at, commit_at, ' \
+               f'object_type_name'
 
     @classmethod
     def get_last_case_number_query(cls) -> str:
@@ -63,7 +66,9 @@ class CaseRecord(BaseModel):
             description=obj.description,
             created_at=obj.created_at,
             updated_at=obj.updated_at,
-            commit_at=obj.commit_at)
+            commit_at=obj.commit_at,
+            object_type_name=obj.object_type_name
+        )
 
     @classmethod
     def from_db_row(cls, row: Dict) -> "CaseRecord":
@@ -74,9 +79,10 @@ class CaseRecord(BaseModel):
             account_id=row["account_id"],
             summary=row["summary"],
             description=row.get("description", ""),
-            created_at=row["created_at"],
-            updated_at=row["updated_at"],
-            commit_at=row["commit_at"]
+            created_at=float(row["created_at"]),
+            updated_at=float(row["updated_at"]),
+            commit_at=float(row["commit_at"]),
+            object_type_name=row["object_type_name"]
         )
 
     def __init__(self, **data):
@@ -90,12 +96,13 @@ class CaseRecord(BaseModel):
     def insert_to_db(self, conn: Connection, cursor: Cursor):
         now = time.time()
         self.commit_at = now
-        query = f"INSERT INTO {CaseRecord.table_name()} ({CaseRecord.table_fields()}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        query = f"INSERT INTO {CaseRecord.table_name()} ({CaseRecord.table_fields()}) " \
+                f"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         logger.debug(f'Running SQL query "{query}"')
         cursor.execute(
             query,
             (self.id, self.case_number, self.owner_id, self.account_id, self.summary, self.description, self.created_at,
-             self.updated_at, self.commit_at)
+             self.updated_at, self.commit_at, self.object_type_name)
         )
         conn.commit()
 
@@ -109,6 +116,7 @@ class CaseRecord(BaseModel):
         self.created_at = float(row["created_at"])
         self.updated_at = float(row["updated_at"])
         self.commit_at = float(row["commit_at"])
+        self.object_type_name = row["object_type_name"]
 
     def read_from_object(self, obj: Case) -> None:
         self.id = str(obj.id)
@@ -120,6 +128,7 @@ class CaseRecord(BaseModel):
         self.created_at = obj.created_at
         self.updated_at = obj.updated_at
         self.commit_at = obj.commit_at
+        self.object_type_name = obj.object_type_name
 
     def convert_to_object(self) -> Case:
         obj: Case = Case(
@@ -131,6 +140,7 @@ class CaseRecord(BaseModel):
             description=self.description,
             created_at=self.created_at,
             updated_at=self.updated_at,
-            commit_at=self.commit_at
+            commit_at=self.commit_at,
+            object_type_name=self.object_type_name
         )
         return obj

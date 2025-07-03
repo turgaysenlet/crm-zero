@@ -1,4 +1,5 @@
 import logging
+import uuid
 from typing import List, Optional, ClassVar
 
 from src.core.base.data_field import DataField
@@ -30,13 +31,14 @@ class Case(DataObject):
         # Increment the case number before creating a new case
         Case.last_case_number += 1
         try:
-            super().__init__(id=data["id"],
+            super().__init__(id=data.get("id", uuid.uuid4()),
                              case_number=Case.case_number_from_number(Case.last_case_number),
                              owner_id=data["owner_id"],
                              account_id=data["account_id"],
                              summary=data["summary"],
                              description=data.get("description", ""),
-                             fields=Case.get_custom_fields())
+                             custom_fields=Case.get_custom_fields(),
+                             object_type_name="Case")
             logger.debug(f"Creating case: {self}")
         except Exception as e:
             # Decrement back to orginal if creation failed.

@@ -21,6 +21,7 @@ class AccountApiRecord(BaseModel):
     created_at: float = 0.0
     updated_at: float = 0.0
     commit_at: float = 0.0
+    object_type_name: str
 
     @classmethod
     def from_object(cls, obj: Account) -> "AccountApiRecord":
@@ -32,7 +33,9 @@ class AccountApiRecord(BaseModel):
             description=obj.description,
             created_at=obj.created_at,
             updated_at=obj.updated_at,
-            commit_at=obj.commit_at)
+            commit_at=obj.commit_at,
+            object_type_name=obj.object_type_name
+        )
 
     @classmethod
     def from_db_row(cls, row: Dict) -> "AccountApiRecord":
@@ -42,9 +45,10 @@ class AccountApiRecord(BaseModel):
             owner_id=row["owner_id"],
             account_name=row["account_name"],
             description=row.get("description", ""),
-            created_at=row["created_at"],
-            updated_at=row["updated_at"],
-            commit_at=row["commit_at"]
+            created_at=float(row["created_at"]),
+            updated_at=float(row["updated_at"]),
+            commit_at=float(row["commit_at"]),
+            object_type_name=row["object_type_name"]
         )
 
     def __init__(self, **data):
@@ -64,6 +68,7 @@ class AccountApiRecord(BaseModel):
         self.created_at = obj.created_at
         self.updated_at = obj.updated_at
         self.commit_at = obj.commit_at
+        self.object_type_name = obj.object_type_name
 
     def convert_to_object(self) -> Account:
         obj: Account = Account(
@@ -74,6 +79,7 @@ class AccountApiRecord(BaseModel):
             description=self.description,
             created_at=self.created_at,
             updated_at=self.updated_at,
-            commit_at=self.commit_at
+            commit_at=self.commit_at,
+            object_type_name=self.object_type_name
         )
         return obj

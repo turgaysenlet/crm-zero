@@ -1,4 +1,5 @@
 import logging
+import uuid
 from typing import List
 
 from src.core.access.access_rule import AccessRule
@@ -19,8 +20,9 @@ class Profile(DataObject):
         return []
 
     def __init__(self, **data):
-        super().__init__(id=data["id"],
+        super().__init__(id=data.get("id", uuid.uuid4()),
                          name=data["name"],
                          access_rules=data["access_rules"],
-                         fields=Profile.get_custom_fields())
+                         custom_fields=Profile.get_custom_fields(),
+                         object_type_name="Profile")
         logger.debug(f"Creating profile: {self}")

@@ -24,6 +24,7 @@ class UserRecord(BaseModel):
     created_at: float = 0.0
     updated_at: float = 0.0
     commit_at: float = 0.0
+    object_type_name: str
 
     @classmethod
     def table_name(cls) -> str:
@@ -39,13 +40,14 @@ class UserRecord(BaseModel):
                 profiles TEXT,
                 created_at FLOAT,
                 updated_at FLOAT,
-                commit_at FLOAT             
+                commit_at FLOAT,
+                object_type_name TEXT NOT NULL
             )
         '''
 
     @classmethod
     def table_fields(cls) -> str:
-        return f'id, username, fullname, password_hash, profiles, created_at, updated_at, commit_at'
+        return f'id, username, fullname, password_hash, profiles, created_at, updated_at, commit_at, object_type_name'
 
     @classmethod
     def from_object(cls, obj: User) -> "UserRecord":
@@ -54,10 +56,11 @@ class UserRecord(BaseModel):
             username=str(obj.username),
             fullname=obj.fullname,
             password_hash=obj.password_hash,
-            profiles=json.dumps([ProfileRecord.from_object(profile).dict() for profile in obj.profiles]),
+            profiles=json.dumps(obj.profiles.to_json_dict()),
             created_at=obj.created_at,
             updated_at=obj.updated_at,
-            commit_at=obj.commit_at
+            commit_at=obj.commit_at,
+            object_type_name=obj.object_type_name
         )
 
     @classmethod
@@ -70,7 +73,8 @@ class UserRecord(BaseModel):
             profiles=row.get("profiles", ""),
             created_at=float(row["created_at"]),
             updated_at=float(row["updated_at"]),
-            commit_at=float(row["commit_at"])
+            commit_at=float(row["commit_at"]),
+            object_type_name=row["object_type_name"]
         )
 
     def __init__(self, **data):
@@ -84,12 +88,13 @@ class UserRecord(BaseModel):
     def insert_to_db(self, conn: Connection, cursor: Cursor):
         now = time.time()
         self.commit_at = now
-        query = f"INSERT INTO {UserRecord.table_name()} ({UserRecord.table_fields()}) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+        query = f"INSERT INTO {UserRecord.table_name()} ({UserRecord.table_fields()}) " \
+                f"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
         logger.debug(f'Running SQL query "{query}"')
         cursor.execute(
             query,
             (self.id, self.username, self.fullname, self.password_hash, self.profiles, self.created_at, self.updated_at,
-             self.commit_at)
+             self.commit_at, self.object_type_name)
         )
         conn.commit()
 
@@ -97,12 +102,12 @@ class UserRecord(BaseModel):
         now = time.time()
         self.commit_at = now
         query = f"INSERT OR REPLACE INTO {UserRecord.table_name()} ({UserRecord.table_fields()}) " \
-                f"VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+                f"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
         logger.debug(f'Running SQL query "{query}"')
         cursor.execute(
             query,
             (self.id, self.username, self.fullname, self.password_hash, self.profiles, self.created_at, self.updated_at,
-             self.commit_at)
+             self.commit_at, self.object_type_name)
         )
         conn.commit()
 
@@ -115,16 +120,18 @@ class UserRecord(BaseModel):
         self.created_at = float(row["created_at"])
         self.updated_at = float(row["updated_at"])
         self.commit_at = float(row["commit_at"])
+        self.object_type_name = row["object_type_name"]
 
     def read_from_object(self, obj: User) -> None:
         self.id = str(obj.id)
         self.username = obj.username
         self.fullname = obj.fullname
         self.password_hash = obj.password_hash
-        self.profiles = json.dumps([profile.dict() for profile in obj.profiles])
+        self.profiles = json.dumps(obj.profiles.to_json_dict()),
         self.created_at = obj.created_at
         self.updated_at = obj.updated_at
         self.commit_at = obj.commit_at
+        self.object_type_name = obj.object_type_name
 
     def convert_to_object(self) -> User:
         obj: User = User(
@@ -135,6 +142,7 @@ class UserRecord(BaseModel):
             profiles=ProfileRecord.from_json_to_list(self.profiles),
             created_at=self.created_at,
             updated_at=self.updated_at,
-            commit_at=self.commit_at
+            commit_at=self.commit_at,
+            object_type_name=self.object_type_name
         )
         return obj

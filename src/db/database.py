@@ -1,12 +1,14 @@
 import logging
 import sqlite3
+import uuid
 from pathlib import Path
 from sqlite3 import Connection, Cursor
-from typing import Optional, List
+from typing import Optional, List, Any
 
 from pydantic import BaseModel, ConfigDict
 
 from src.core.access.access_rule import AccessRule
+from src.core.access.profile import Profile
 from src.core.access.user import User
 from src.core.base.data_object import DataObject
 from src.db.account_record import AccountRecord
@@ -68,6 +70,30 @@ class Database(BaseModel):
         self.cursor.execute(f'''
             CREATE TABLE IF NOT EXISTS {table_name}
         ''')
+
+    def get_table_row(self, table_name: str, id: uuid.UUID) -> [dict]:
+        """
+        Reads one record from the specified table, based on the id field.
+        Returns a list of dictionaries, where each dictionary represents a row.
+        """
+        if not self.conn:
+            logger.error("Database connection not established. Cannot list table.")
+            return []
+
+        try:
+            query = f"SELECT * FROM {table_name} WHERE id='{str(id)}'"
+            logger.debug(f'Running SQL query "{query}"')
+            self.cursor.execute(query)
+            rows = self.cursor.fetchall()
+            logger.debug(f'Received rows: "{rows}"')
+            # Convert sqlite3.Row objects to dictionaries for easier handling
+            return [dict(row) for row in rows]
+        except sqlite3.OperationalError as e:
+            logger.error(f"Error: Table '{table_name}' does not exist or SQL error. {e}")
+            return []
+        except sqlite3.Error as e:
+            logger.error(f"Error listing table '{table_name}': {e}")
+            return []
 
     def list_table_rows(self, table_name: str, where: Optional[str] = None) -> [dict]:
         """
@@ -158,29 +184,85 @@ class Database(BaseModel):
             logger.error("Database connection not established. Cannot list table.")
             return []
 
-        access_rules: List[AccessRule] = []
-        if user is not None:
-            for profile in user.profiles:
-                access_rules.extend(profile.access_rules)
-            data_object_types: List[str] = [access_rule.data_object_type for access_rule in access_rules]
-            if data_object_types.__contains__(object_type_str):
-                rows = self.list_table_rows(table_name)
+        # Check access
+        allow_access = self.check_access(object_type_str, user)
+        # Read from DB
+        if allow_access:
+            rows = self.list_table_rows(table_name)
+            if rows is not None and len(rows) > 0:
                 if object_type_str == "Case":
                     return [CaseRecord.from_db_row(row) for row in rows]
                 elif object_type_str == "Account":
                     return [AccountRecord.from_db_row(row) for row in rows]
-                logger.warning(
-                    f'Unexpected object type "{object_type_str}".')
-                return []
-            else:
-                logger.warning(f'User "{user.username}" trying to access object type "{object_type_str}", '
-                               f'but does not have access.')
+                elif object_type_str == "User":
+                    return [UserRecord.from_db_row(row) for row in rows]
+                elif object_type_str == "Profile":
+                    return [ProfileRecord.from_db_row(row) for row in rows]
+                else:
+                    # Unexpected object type
+                    logger.warning(f'Unexpected object type "{object_type_str}".')
                 return []
         else:
-            if object_type_str == "User":
-                rows = self.list_table_rows(table_name)
-                return [UserRecord.from_db_row(row) for row in rows]
+            logger.warning(f'User "{user.username}" trying to access object type "{object_type_str}", '
+                           f'but does not have access.')
+            return []
+
+    def read_object_by_id(self, table_name: str, object_type_str: str, object_id: uuid.UUID, user: Optional[User]) \
+            -> Any:
+        """
+        Read all records from the specified table, by applying user based access rules.
+        Returns object of the given type.
+        """
+        if not self.conn:
+            logger.error("Database connection not established. Cannot list table.")
+            return []
+        # Check access
+        allow_access = self.check_access(object_type_str, user)
+        # Read from DB
+        if allow_access:
+            rows = self.get_table_row(table_name)
+            if rows is not None and len(rows) > 0:
+                row = rows[0]
+                if object_type_str == "Case":
+                    return CaseRecord.from_db_row(row)
+                elif object_type_str == "Account":
+                    return AccountRecord.from_db_row(row)
+                elif object_type_str == "User":
+                    return UserRecord.from_db_row(row)
+                elif object_type_str == "Profile":
+                    return ProfileRecord.from_db_row(row)
+                else:
+                    # Unexpected object type
+                    logger.warning(f'Unexpected object type "{object_type_str}".')
+                return None
             else:
-                logger.warning(
-                    f'Unexpected object type "{object_type_str}".')
-                return []
+                # No rows
+                logger.warning(f'No object of id "{object_id}" and type "{object_type_str}" found.')
+                return None
+        else:
+            # No access
+            logger.warning(f'User "{user.username}" trying to access object type "{object_type_str}", '
+                           f'but does not have access.')
+            return None
+
+    def get_profiles(self) -> List[Profile]:
+        # TODO: Potential infinite stack due to read_objects calling check_access and check_access calling read_objects.
+        profile_records: List[ProfileRecord] = self.read_objects(ProfileRecord.table_name(), "Profile", None)
+        profiles: List[Profile] = [profile_record.convert_to_object() for profile_record in profile_records]
+        if not profiles:
+            return []
+        return profiles
+
+    def check_access(self, object_type_str: str, user: User):
+        allow_access = AccessRule.object_type_accessible_to_all(object_type_str)
+        access_rules: List[AccessRule] = []
+        if user is not None:
+            all_profiles = self.get_profiles()
+            all_profiles_dict = {profile.id: profile for profile in all_profiles}
+            for profile_id in user.profiles.object_ids:
+                found_profile = all_profiles_dict[profile_id]
+                access_rules.extend(found_profile.access_rules)
+            data_object_types: List[str] = [access_rule.data_object_type for access_rule in access_rules]
+            if data_object_types.__contains__(object_type_str):
+                allow_access = True
+        return allow_access

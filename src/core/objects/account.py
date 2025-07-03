@@ -1,4 +1,5 @@
 import logging
+import uuid
 from typing import List, Optional, ClassVar
 
 from src.core.base.data_field import DataField
@@ -28,10 +29,11 @@ class Account(DataObject):
     def __init__(self, **data):
         # Increment the account number before creating a new account
         Account.last_account_number += 1
-        super().__init__(id=data["id"],
+        super().__init__(id=data.get("id", uuid.uuid4()),
                          account_number=Account.account_number_from_number(Account.last_account_number),
                          owner_id=data["owner_id"],
                          account_name=data["account_name"],
                          description=data.get("description", ""),
-                         fields=Account.get_custom_fields())
+                         custom_fields=Account.get_custom_fields(),
+                         object_type_name="Account")
         logger.debug(f"Creating account: {self}")

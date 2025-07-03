@@ -17,7 +17,11 @@ class AccessRule(DataObject):
     # TODO: Add field based access rules to AccessRule.
 
     def __init__(self, **data):
-        super().__init__(**data)
+        super().__init__(id=data.get("id", uuid.uuid4()),
+                         data_object_type=data["data_object_type"],
+                         access_type=data["access_type"],
+                         object_type_name="AccessRule"
+                         )
         logger.debug(f"Creating access rule: {self}")
 
     def to_json_dict(self) -> dict:
@@ -43,3 +47,7 @@ class AccessRule(DataObject):
             updated_at=json_dict["updated_at"],
             commit_at=json_dict["commit_at"]
         )
+
+    @classmethod
+    def object_type_accessible_to_all(cls, object_type: str) -> bool:
+        return ["User", "Profile"].__contains__(object_type)
