@@ -37,9 +37,10 @@ class Workflow(DataObject):
         self.workflow_steps = workflow_steps
 
     def run_workflow(self):
+        sender = "1234"
         print(f"-Running workflow '{self.workflow_name}' with id '{str(self.id)}'...")
         for workflow_step in self.workflow_steps:
             print(f"---Running step '{workflow_step.workflow_step_name}' with id '{str(workflow_step.id)}'...")
-            exec(workflow_step.workflow_step_code)
+            exec(workflow_step.workflow_step_code, {}, locals())
             print(f"---Done running step '{workflow_step.workflow_step_name}' with id '{str(workflow_step.id)}'.")
         print(f"-Done running workflow '{self.workflow_name}' with id '{str(self.id)}'.")

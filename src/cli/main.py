@@ -79,9 +79,14 @@ def main(clean_db: bool = False):
                                                 workflow_step_name="WorkflowStep2",
                                                 workflow_step_code='print("Step2")')
 
+    workflow3_step: WorkflowStep = WorkflowStep(owner_id=ObjectReference.from_object(support_agent_user1),
+                                                workflow_step_name="WorkflowStep3",
+                                                workflow_step_code='print(f"Step3: sender = {sender}")')
+
     workflow1: Workflow = Workflow(owner_id=ObjectReference.from_object(support_agent_user1),
                                    workflow_name="Workflow1",
-                                   workflow_step_ids=ObjectReferenceList.from_list([workflow1_step, workflow2_step]))
+                                   workflow_step_ids=ObjectReferenceList.from_list(
+                                       [workflow1_step, workflow2_step, workflow3_step]))
 
     case1: Case = Case(owner_id=ObjectReference.from_object(support_agent_user1),
                        account_id=ObjectReference.from_object(account1),
@@ -95,6 +100,7 @@ def main(clean_db: bool = False):
     # Create and write database records for accounts
     WorkflowStepRecord.from_object(workflow1_step).insert_or_replace_to_db(db_conn, db_cursor)
     WorkflowStepRecord.from_object(workflow2_step).insert_or_replace_to_db(db_conn, db_cursor)
+    WorkflowStepRecord.from_object(workflow3_step).insert_or_replace_to_db(db_conn, db_cursor)
 
     WorkflowRecord.from_object(workflow1).insert_or_replace_to_db(db_conn, db_cursor)
 
