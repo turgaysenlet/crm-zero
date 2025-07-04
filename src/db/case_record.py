@@ -7,6 +7,7 @@ from typing import Optional, Dict, Any
 from pydantic import BaseModel
 
 from src.core.objects.case import Case
+from src.core.reference.object_reference import ObjectReference
 
 logging.basicConfig()
 logger = logging.getLogger("CaseRecord")
@@ -60,8 +61,8 @@ class CaseRecord(BaseModel):
         return CaseRecord(
             id=str(obj.id),
             case_number=obj.case_number,
-            owner_id=str(obj.owner_id),
-            account_id=str(obj.account_id),
+            owner_id=obj.owner_id.to_json_str(),
+            account_id=obj.account_id.to_json_str(),
             summary=obj.summary,
             description=obj.description,
             created_at=obj.created_at,
@@ -134,8 +135,8 @@ class CaseRecord(BaseModel):
         obj: Case = Case(
             id=uuid.UUID(self.id),
             case_number=self.case_number,
-            owner_id=uuid.UUID(self.owner_id),
-            account_id=uuid.UUID(self.account_id),
+            owner_id=ObjectReference.from_json_string(self.owner_id),
+            account_id=ObjectReference.from_json_string(self.account_id),
             summary=self.summary,
             description=self.description,
             created_at=self.created_at,

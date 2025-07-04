@@ -100,10 +100,11 @@ class Server:
         db_conn.close()
         return user_api_records
 
-    async def get_user(self, username) -> Optional[User]:
+    async def get_user(self, username: str) -> Optional[User]:
         [db_conn, db_cursor] = self.db.connect()
         user_records: List[UserRecord] = self.db.read_objects(db_conn, db_cursor, UserRecord.table_name(), "User", None)
-        users: List[User] = [user_record.convert_to_object() for user_record in user_records]
+        all_profiles = self.db.get_profiles(db_conn, db_cursor)
+        users: List[User] = [user_record.convert_to_object(all_profiles) for user_record in user_records]
         user = next((u for u in users if u.username == username), None)
         db_conn.close()
         return user

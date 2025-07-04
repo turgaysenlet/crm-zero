@@ -3,11 +3,13 @@ import logging
 import time
 import uuid
 from sqlite3 import Cursor, Connection
-from typing import Dict, Any
+from typing import Dict, Any, List
 
 from pydantic import BaseModel
 
+from src.core.access.profile import Profile
 from src.core.access.user import User
+from src.core.reference.object_reference_list import ObjectReferenceList
 from src.db.profile_record import ProfileRecord
 
 logging.basicConfig()
@@ -139,7 +141,7 @@ class UserRecord(BaseModel):
             username=self.username,
             fullname=self.fullname,
             password_hash=self.password_hash,
-            profiles=ProfileRecord.from_json_to_list(self.profiles),
+            profiles=ObjectReferenceList.from_string(self.profiles),
             created_at=self.created_at,
             updated_at=self.updated_at,
             commit_at=self.commit_at,

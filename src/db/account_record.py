@@ -58,7 +58,7 @@ class AccountRecord(BaseModel):
         return AccountRecord(
             id=str(obj.id),
             account_number=obj.account_number,
-            owner_id=str(obj.owner_id),
+            owner_id=obj.owner_id.to_json_str(),
             account_name=obj.account_name,
             description=obj.description,
             created_at=obj.created_at,

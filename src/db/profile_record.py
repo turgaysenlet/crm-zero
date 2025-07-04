@@ -3,7 +3,7 @@ import logging
 import time
 import uuid
 from sqlite3 import Cursor, Connection
-from typing import Dict, Any
+from typing import Dict, Any, List
 
 from pydantic import BaseModel
 
@@ -46,22 +46,12 @@ class ProfileRecord(BaseModel):
         return f'id, name, access_rules, created_at, updated_at, commit_at, object_type_name'
 
     @classmethod
-    def from_json_to_list(cls, profiles_json_str: str):
+    def from_json_to_list(cls, profiles_json_str: str, all_profiles: List[Profile]) -> List[Profile]:
         j = json.loads(profiles_json_str or "[]")
-        l = []
-        for jj in j:
-            l.append(
-                Profile(
-                    id=jj["id"],
-                    name=jj["name"],
-                    created_at=jj["created_at"],
-                    updated_at=jj["updated_at"],
-                    commit_at=jj["commit_at"],
-                    access_rules=[AccessRule.from_json_dict(access_rule_dict) for
-                                  access_rule_dict in json.loads(jj["access_rules"] or [])]
-                )
-            )
-        return l
+        # Dictionary of profiles based on string version of the id as the key.
+        all_profiles_dict = {str(profile.id): profile for profile in all_profiles}
+        # Return a list of all profiles that match the ids in the object_ids list.
+        return [all_profiles_dict[profile_id] for profile_id in j["object_ids"]]
 
     @classmethod
     def from_object(cls, obj: Profile) -> "ProfileRecord":

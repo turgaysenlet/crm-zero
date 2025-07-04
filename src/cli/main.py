@@ -1,4 +1,5 @@
 import logging
+import sys
 
 from src.core.access.access_rule import AccessRule
 from src.core.access.access_type import AccessType
@@ -20,13 +21,14 @@ logger = logging.getLogger("CLI Main")
 logger.setLevel(logging.INFO)
 
 
-def main():
+def main(clean_db: bool = False):
     logger.debug("Starting CLI")
     logger.info("Welcome to CRM-Lite CLI")
 
     # Connect to database
     db: Database = Database(db_name="../database/crm.db")
-    # db.delete_if_exists()
+    if clean_db:
+        db.delete_if_exists()
     [db_conn, db_cursor] = db.connect()
     db.init_db_schema(db_conn, db_cursor)
     # Reconnect after init_db_schema closes the db connection
@@ -111,4 +113,8 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    clean_db_param = False
+    if "--clean_db" in sys.argv:
+        logger.info(f"Cleaning database")
+        clean_db_param = True
+    main(clean_db_param)

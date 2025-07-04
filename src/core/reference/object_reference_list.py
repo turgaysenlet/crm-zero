@@ -1,3 +1,4 @@
+import json
 import logging
 import uuid
 from typing import List, Optional
@@ -32,4 +33,14 @@ class ObjectReferenceList(BaseModel):
             return None
         object_type_name = object_list[0].object_type_name
         ids = [object_item.id for object_item in object_list]
+        return ObjectReferenceList(object_type_name=object_type_name, object_ids=ids)
+
+    @classmethod
+    def from_string(cls, object_list_str: str) -> Optional["ObjectReferenceList"]:
+        object_list = json.loads(object_list_str or [])
+        if object_list is None or len(object_list) == 0:
+            logger.debug(f"Object list is empty")
+            return None
+        object_type_name = object_list["object_type_name"]
+        ids = [uuid.UUID(object_id) for object_id in object_list["object_ids"]]
         return ObjectReferenceList(object_type_name=object_type_name, object_ids=ids)

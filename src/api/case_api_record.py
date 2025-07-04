@@ -29,8 +29,8 @@ class CaseApiRecord(BaseModel):
         return CaseApiRecord(
             id=str(obj.id),
             case_number=obj.case_number,
-            owner_id=str(obj.owner_id),
-            account_id=str(obj.account_id),
+            owner_id=obj.owner_id.to_json_str(),
+            account_id=obj.account_id.to_json_str(),
             summary=obj.summary,
             description=obj.description,
             created_at=obj.created_at,
