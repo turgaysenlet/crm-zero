@@ -5,6 +5,7 @@ from src.core.access.access_rule import AccessRule
 from src.core.access.access_type import AccessType
 from src.core.access.profile import Profile
 from src.core.access.user import User
+from src.core.eventbus.workflow import Workflow
 from src.core.objects.account import Account
 from src.core.objects.case import Case
 from src.core.reference.object_reference import ObjectReference
@@ -15,6 +16,7 @@ from src.db.database import Database
 from src.db.case_record import CaseRecord
 from src.db.profile_record import ProfileRecord
 from src.db.user_record import UserRecord
+from src.db.workflow_record import WorkflowRecord
 
 logging.basicConfig()
 logger = logging.getLogger("CLI Main")
@@ -67,6 +69,9 @@ def main(clean_db: bool = False):
                                 owner_id=ObjectReference.from_object(support_agent_user1),
                                 description="Account 1 - Description")
 
+    workflow1: Workflow = Workflow(owner_id=ObjectReference.from_object(support_agent_user1),
+                                   workflow_name="Workflow1", workflow_step_ids=ObjectReferenceList.from_list([]))
+
     case1: Case = Case(owner_id=ObjectReference.from_object(support_agent_user1),
                        account_id=ObjectReference.from_object(account1),
                        summary="Case 1 - Support",
@@ -77,6 +82,9 @@ def main(clean_db: bool = False):
                        description="Case 2 - Description")
 
     # Create and write database records for accounts
+    workflow_record1: WorkflowRecord = WorkflowRecord.from_object(workflow1)
+    workflow_record1.insert_to_db(db_conn, db_cursor)
+
     account_record1: AccountRecord = AccountRecord.from_object(account1)
     account_record1.insert_to_db(db_conn, db_cursor)
 

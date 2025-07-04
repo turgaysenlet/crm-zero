@@ -1,24 +1,23 @@
 import uuid
-
-from fastapi import Path as FastAPIPath, Query
-
-from fastapi import FastAPI, APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
 from typing import List, Optional
+
 import uvicorn
+from fastapi import FastAPI, APIRouter, HTTPException, Query
+from fastapi import Path as FastAPIPath
 
 from src.api.account_api_record import AccountApiRecord
 from src.api.case_api_record import CaseApiRecord
 from src.api.user_api_record import UserApiRecord
-from src.core.access.profile import Profile
+from src.api.workflow_api_record import WorkflowApiRecord
 from src.core.access.user import User
+from src.core.eventbus.workflow import Workflow
 from src.core.objects.account import Account
 from src.core.objects.case import Case
 from src.db.account_record import AccountRecord
 from src.db.case_record import CaseRecord
 from src.db.database import Database
-from src.db.profile_record import ProfileRecord
 from src.db.user_record import UserRecord
+from src.db.workflow_record import WorkflowRecord
 
 app = FastAPI()
 router = APIRouter()
@@ -34,13 +33,10 @@ class Server:
         self.router.add_api_route("/cases", self.get_cases_api_record, response_model=List[CaseApiRecord])
         self.router.add_api_route("/accounts", self.get_accounts_api_record, response_model=List[AccountApiRecord])
         self.router.add_api_route("/users", self.get_users_api_record, response_model=List[UserApiRecord])
+        self.router.add_api_route("/workflows", self.get_workflows_api_record, response_model=List[WorkflowApiRecord])
         # LIST with access check
         self.router.add_api_route("/cases_by_username", self.get_cases_by_username, response_model=List[CaseApiRecord])
-        # GET
-        self.router.add_api_route("/cases", self.get_cases_api_record, response_model=List[CaseApiRecord])
-        self.router.add_api_route("/accounts", self.get_accounts_api_record, response_model=List[AccountApiRecord])
-        self.router.add_api_route("/users", self.get_users_api_record, response_model=List[UserApiRecord])
-        # GET with access check
+        # GET with id
         self.router.add_api_route("/case/{case_id}", self.get_case_by_id_and_user, response_model=CaseApiRecord,
                                   methods=["GET"])
         self.router.add_api_route("/account/{account_id}", self.get_account_by_id_and_user,
@@ -108,6 +104,19 @@ class Server:
         user = next((u for u in users if u.username == username), None)
         db_conn.close()
         return user
+
+    async def get_workflows_api_record(self) -> List[WorkflowApiRecord]:
+        [db_conn, db_cursor] = self.db.connect()
+        workflow_records: List[WorkflowRecord] = self.db.read_objects(db_conn, db_cursor, WorkflowRecord.table_name(),
+                                                                      "Workflow", None)
+        workflows: List[Workflow] = [workflow_record.convert_to_object() for workflow_record in workflow_records]
+        workflow_api_records: List[WorkflowApiRecord] = [WorkflowApiRecord.from_object(workflow) for workflow in
+                                                         workflows]
+        if not workflow_api_records:
+            db_conn.close()
+            raise HTTPException(status_code=404, detail=f"No workflows found.")
+        db_conn.close()
+        return workflow_api_records
 
     async def get_cases_by_username(self, username: str = Query(..., description="Username to filter cases by")) -> \
             List[CaseApiRecord]:

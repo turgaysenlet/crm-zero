@@ -1,12 +1,12 @@
 import logging
 import time
 import uuid
-from typing import Dict, List
+from typing import Dict
 
 from pydantic import BaseModel
 
-from src.core.access.profile import Profile
 from src.core.access.user import User
+from src.core.reference.object_reference_list import ObjectReferenceList
 
 logging.basicConfig()
 logger = logging.getLogger("UserApiRecord")
@@ -26,12 +26,15 @@ class UserApiRecord(BaseModel):
 
     @classmethod
     def from_object(cls, obj: User) -> "UserApiRecord":
+        profile_ids = "{}"
+        if obj.profile_ids is not None:
+            profile_ids = obj.profile_ids.to_json_string()
         return UserApiRecord(
             id=str(obj.id),
             username=str(obj.username),
             fullname=obj.fullname,
             password_hash=obj.password_hash,
-            profile_ids=obj.profile_ids.to_json_string(),
+            profile_ids=profile_ids,
             created_at=obj.created_at,
             updated_at=obj.updated_at,
             commit_at=obj.commit_at,
@@ -52,10 +55,6 @@ class UserApiRecord(BaseModel):
             object_type_name=row["object_type_name"]
         )
 
-    @classmethod
-    def read_profiles_from_ids(cls, profile_ids: List[str], ) -> List[Profile]:
-        return []
-
     def __init__(self, **data):
         super().__init__(**data)
         now = time.time()
@@ -65,11 +64,14 @@ class UserApiRecord(BaseModel):
         logger.debug(f"Creating user record: {self}")
 
     def read_from_object(self, obj: User) -> None:
+        profile_ids = "{}"
+        if obj.profile_ids is not None:
+            profile_ids = obj.profile_ids.to_json_string()
         self.id = str(obj.id)
         self.username = obj.username
         self.fullname = obj.fullname
         self.password_hash = obj.password_hash
-        self.profile_ids = obj.profile_ids.to_json_string()
+        self.profile_ids = profile_ids
         self.created_at = obj.created_at
         self.updated_at = obj.updated_at
         self.commit_at = obj.commit_at
@@ -80,7 +82,7 @@ class UserApiRecord(BaseModel):
             id=uuid.UUID(self.id),
             fullname=uuid.UUID(self.owner_id),
             password_hash=self.password_hash,
-            profile_ids=self.profile_ids,
+            profile_ids=ObjectReferenceList.from_string(self.profile_ids),
             description=self.description,
             created_at=self.created_at,
             updated_at=self.updated_at,

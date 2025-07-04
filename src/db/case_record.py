@@ -108,6 +108,20 @@ class CaseRecord(BaseModel):
         Case.last_case_number += 1
         conn.commit()
 
+    def insert_or_replace_to_db(self, conn: Connection, cursor: Cursor) -> None:
+        now = time.time()
+        self.commit_at = now
+        query = f"INSERT OR REPLACE INTO {CaseRecord.table_name()} ({CaseRecord.table_fields()}) " \
+                f"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        logger.debug(f'Running SQL query "{query}"')
+        cursor.execute(
+            query,
+            (self.id, self.case_number, self.owner_id, self.account_id, self.summary, self.description, self.created_at,
+             self.updated_at, self.commit_at, self.object_type_name)
+        )
+        Case.last_case_number += 1
+        conn.commit()
+
     def read_from_db_row(self, row: Dict[str, Any]) -> None:
         self.id = str(row["id"])
         self.case_number = str(row["case_number"])

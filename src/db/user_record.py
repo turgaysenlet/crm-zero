@@ -53,12 +53,15 @@ class UserRecord(BaseModel):
 
     @classmethod
     def from_object(cls, obj: User) -> "UserRecord":
+        profile_ids = "{}"
+        if obj.profile_ids is not None:
+            profile_ids = obj.profile_ids.to_json_string()
         return UserRecord(
             id=str(obj.id),
             username=str(obj.username),
             fullname=obj.fullname,
             password_hash=obj.password_hash,
-            profile_ids=obj.profile_ids.to_json_string(),
+            profile_ids=profile_ids,
             created_at=obj.created_at,
             updated_at=obj.updated_at,
             commit_at=obj.commit_at,
@@ -113,7 +116,7 @@ class UserRecord(BaseModel):
         )
         conn.commit()
 
-    def read_from_db_row(self, row: Dict[str, Any]):
+    def read_from_db_row(self, row: Dict[str, Any]) -> None:
         self.id = str(row["id"])
         self.username = row["username"]
         self.fullname = row["fullname"]
@@ -125,11 +128,14 @@ class UserRecord(BaseModel):
         self.object_type_name = row["object_type_name"]
 
     def read_from_object(self, obj: User) -> None:
+        profile_ids = "{}"
+        if obj.profile_ids is not None:
+            profile_ids = obj.profile_ids.to_json_string()
         self.id = str(obj.id)
         self.username = obj.username
         self.fullname = obj.fullname
         self.password_hash = obj.password_hash
-        self.profile_ids = obj.profile_ids.to_json_string()
+        self.profile_ids = profile_ids
         self.created_at = obj.created_at
         self.updated_at = obj.updated_at
         self.commit_at = obj.commit_at

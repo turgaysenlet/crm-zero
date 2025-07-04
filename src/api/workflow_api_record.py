@@ -1,37 +1,38 @@
 import logging
 import time
 import uuid
-from typing import Optional, Dict
+from typing import Dict
 
 from pydantic import BaseModel
 
-from src.core.objects.account import Account
+from src.core.eventbus.workflow import Workflow
 from src.core.reference.object_reference import ObjectReference
 
 logging.basicConfig()
-logger = logging.getLogger("AccountApiRecord")
+logger = logging.getLogger("WorkflowApiRecord")
 logger.setLevel(logging.DEBUG)
 
 
-class AccountApiRecord(BaseModel):
+class WorkflowApiRecord(BaseModel):
     id: str
-    account_number: str
     owner_id: str
-    account_name: str
-    description: Optional[str] = None
+    workflow_name: str
+    workflow_step_ids: str
     created_at: float = 0.0
     updated_at: float = 0.0
     commit_at: float = 0.0
     object_type_name: str
 
     @classmethod
-    def from_object(cls, obj: Account) -> "AccountApiRecord":
-        return AccountApiRecord(
+    def from_object(cls, obj: Workflow) -> "WorkflowApiRecord":
+        workflow_step_ids = "{}"
+        if obj.workflow_step_ids is not None:
+            workflow_step_ids = obj.workflow_step_ids.to_json_string()
+        return WorkflowApiRecord(
             id=str(obj.id),
-            account_number=obj.account_number,
             owner_id=obj.owner_id.to_json_str(),
-            account_name=obj.account_name,
-            description=obj.description,
+            workflow_name=str(obj.workflow_name),
+            workflow_step_ids=workflow_step_ids,
             created_at=obj.created_at,
             updated_at=obj.updated_at,
             commit_at=obj.commit_at,
@@ -39,13 +40,12 @@ class AccountApiRecord(BaseModel):
         )
 
     @classmethod
-    def from_db_row(cls, row: Dict) -> "AccountApiRecord":
-        return AccountApiRecord(
+    def from_db_row(cls, row: Dict) -> "WorkflowApiRecord":
+        return WorkflowApiRecord(
             id=row["id"],
-            account_number=row["account_number"],
             owner_id=row["owner_id"],
-            account_name=row["account_name"],
-            description=row.get("description", ""),
+            workflow_name=row["workflow_name"],
+            workflow_step_ids=row.get("workflow_step_ids", ""),
             created_at=float(row["created_at"]),
             updated_at=float(row["updated_at"]),
             commit_at=float(row["commit_at"]),
@@ -58,25 +58,26 @@ class AccountApiRecord(BaseModel):
         self.created_at = data.get("created_at", now)
         self.updated_at = data.get("updated_at", now)
         self.commit_at = data.get("commit_at", now)
-        logger.debug(f"Creating account record: {self}")
+        logger.debug(f"Creating workflow record: {self}")
 
-    def read_from_object(self, obj: Account) -> None:
+    def read_from_object(self, obj: Workflow) -> None:
+        workflow_step_ids = "{}"
+        if obj.profile_ids is not None:
+            workflow_step_ids = obj.workflow_step_ids.to_json_string()
         self.id = str(obj.id)
-        self.account_number = obj.account_number
         self.owner_id = obj.owner_id.to_json_str()
-        self.account_name = obj.account_name
-        self.description = obj.description
+        self.workflow_name = obj.workflow_name
+        self.workflow_step_ids = workflow_step_ids
         self.created_at = obj.created_at
         self.updated_at = obj.updated_at
         self.commit_at = obj.commit_at
         self.object_type_name = obj.object_type_name
 
-    def convert_to_object(self) -> Account:
-        obj: Account = Account(
+    def convert_to_object(self) -> Workflow:
+        obj: Workflow = Workflow(
             id=uuid.UUID(self.id),
-            account_number=self.account_number,
             owner_id=ObjectReference.from_json_string(self.owner_id),
-            account_name=self.account_name,
+            workflow_step_ids=self.workflow_step_ids,
             description=self.description,
             created_at=self.created_at,
             updated_at=self.updated_at,
