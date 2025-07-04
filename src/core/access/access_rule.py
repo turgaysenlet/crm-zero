@@ -50,4 +50,4 @@ class AccessRule(DataObject):
 
     @classmethod
     def object_type_accessible_to_all(cls, object_type: str) -> bool:
-        return ["User", "Profile", "Workflow"].__contains__(object_type)
+        return ["User", "Profile", "Workflow", "WorkflowStep"].__contains__(object_type)

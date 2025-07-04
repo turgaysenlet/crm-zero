@@ -9,8 +9,10 @@ from src.api.account_api_record import AccountApiRecord
 from src.api.case_api_record import CaseApiRecord
 from src.api.user_api_record import UserApiRecord
 from src.api.workflow_api_record import WorkflowApiRecord
+from src.api.workflow_step_api_record import WorkflowStepApiRecord
 from src.core.access.user import User
 from src.core.eventbus.workflow import Workflow
+from src.core.eventbus.workflow_step import WorkflowStep
 from src.core.objects.account import Account
 from src.core.objects.case import Case
 from src.db.account_record import AccountRecord
@@ -18,6 +20,7 @@ from src.db.case_record import CaseRecord
 from src.db.database import Database
 from src.db.user_record import UserRecord
 from src.db.workflow_record import WorkflowRecord
+from src.db.workflow_step_record import WorkflowStepRecord
 
 app = FastAPI()
 router = APIRouter()
@@ -34,6 +37,8 @@ class Server:
         self.router.add_api_route("/accounts", self.get_accounts_api_record, response_model=List[AccountApiRecord])
         self.router.add_api_route("/users", self.get_users_api_record, response_model=List[UserApiRecord])
         self.router.add_api_route("/workflows", self.get_workflows_api_record, response_model=List[WorkflowApiRecord])
+        self.router.add_api_route("/workflow_steps", self.get_workflow_steps_api_record,
+                                  response_model=List[WorkflowStepApiRecord])
         # LIST with access check
         self.router.add_api_route("/cases_by_username", self.get_cases_by_username, response_model=List[CaseApiRecord])
         # GET with id
@@ -41,6 +46,10 @@ class Server:
                                   methods=["GET"])
         self.router.add_api_route("/account/{account_id}", self.get_account_by_id_and_user,
                                   response_model=AccountApiRecord, methods=["GET"])
+        self.router.add_api_route("/workflow/{workflow_id}", self.get_workflow_by_id,
+                                  response_model=WorkflowApiRecord, methods=["GET"])
+        self.router.add_api_route("/run/workflow/{workflow_id}", self.run_workflow_by_id,
+                                  response_model=WorkflowApiRecord, methods=["GET"])
 
     def init_db(self):
         # Connect to database
@@ -75,7 +84,8 @@ class Server:
             db_conn.close()
             raise HTTPException(status_code=404, detail=f"User '{username}' not found.")
         else:
-            account_records: List[AccountRecord] = self.db.read_objects(db_conn, db_cursor, AccountRecord.table_name(), "Account", user)
+            account_records: List[AccountRecord] = self.db.read_objects(db_conn, db_cursor, AccountRecord.table_name(),
+                                                                        "Account", user)
             accounts: List[Account] = [account_record.convert_to_object() for account_record in account_records]
             account_api_records: List[AccountApiRecord] = [AccountApiRecord.from_object(account) for account in
                                                            accounts]
@@ -118,6 +128,37 @@ class Server:
         db_conn.close()
         return workflow_api_records
 
+    async def get_workflow_steps_api_record(self) -> List[WorkflowStepApiRecord]:
+        [db_conn, db_cursor] = self.db.connect()
+        workflow_step_records: List[WorkflowStepRecord] = self.db.read_objects(db_conn, db_cursor,
+                                                                               WorkflowStepRecord.table_name(),
+                                                                               "WorkflowStep", None)
+        workflow_steps: List[WorkflowStep] = [workflow_step_record.convert_to_object() for workflow_step_record in
+                                              workflow_step_records]
+        workflow_step_api_records: List[WorkflowStepApiRecord] = [WorkflowStepApiRecord.from_object(workflow_step) for
+                                                                  workflow_step in
+                                                                  workflow_steps]
+        if not workflow_step_api_records:
+            db_conn.close()
+            raise HTTPException(status_code=404, detail=f"No workflow steps found.")
+        db_conn.close()
+        return workflow_step_api_records
+
+    async def get_workflow_steps_api_record(self) -> List[WorkflowStepApiRecord]:
+        [db_conn, db_cursor] = self.db.connect()
+        workflow_step_records: List[WorkflowStepRecord] = self.db.read_objects(db_conn, db_cursor,
+                                                                               WorkflowStepRecord.table_name(),
+                                                                               "WorkflowStep", None)
+        workflow_steps: List[WorkflowStep] = \
+            [workflow_step_record.convert_to_object() for workflow_step_record in workflow_step_records]
+        workflow_step_api_records: List[WorkflowStepApiRecord] = \
+            [WorkflowStepApiRecord.from_object(workflow_step) for workflow_step in workflow_steps]
+        if not workflow_step_api_records:
+            db_conn.close()
+            raise HTTPException(status_code=404, detail=f"No workflow steps found.")
+        db_conn.close()
+        return workflow_step_api_records
+
     async def get_cases_by_username(self, username: str = Query(..., description="Username to filter cases by")) -> \
             List[CaseApiRecord]:
         user: Optional[User] = await self.get_user(username)
@@ -126,7 +167,8 @@ class Server:
             db_conn.close()
             raise HTTPException(status_code=404, detail=f"User '{username}' not found.")
         else:
-            case_records: List[CaseRecord] = self.db.read_objects(db_conn, db_cursor, CaseRecord.table_name(), "Case", user)
+            case_records: List[CaseRecord] = self.db.read_objects(db_conn, db_cursor, CaseRecord.table_name(), "Case",
+                                                                  user)
             cases: List[Case] = [case_record.convert_to_object() for case_record in case_records]
             case_api_records: List[CaseApiRecord] = [CaseApiRecord.from_object(_case) for _case in cases]
             # Username based filtering
@@ -148,7 +190,8 @@ class Server:
             db_conn.close()
             raise HTTPException(status_code=404, detail=f"User '{username}' not found.")
         else:
-            case_record: CaseRecord = self.db.read_object_by_id(db_conn, db_cursor, CaseRecord.table_name(), "Case", case_id, user)
+            case_record: CaseRecord = self.db.read_object_by_id(db_conn, db_cursor, CaseRecord.table_name(), "Case",
+                                                                case_id, user)
             if not case_record:
                 db_conn.close()
                 raise HTTPException(status_code=404, detail=f"No case found for user '{username}'.")
@@ -174,7 +217,7 @@ class Server:
             raise HTTPException(status_code=404, detail=f"User '{username}' not found.")
         else:
             account_record: AccountRecord = self.db.read_object_by_id(db_conn, db_cursor, AccountRecord.table_name(),
-                                                                        "Account", account_id, user)
+                                                                      "Account", account_id, user)
             if not account_record:
                 db_conn.close()
                 raise HTTPException(status_code=404, detail=f"No account found for user '{username}'.")
@@ -187,6 +230,57 @@ class Server:
                 raise HTTPException(status_code=404, detail=f"No account found for user '{username}'.")
             db_conn.close()
             return account_api_record
+
+    async def get_workflow_by_id(
+            self,
+            workflow_id: uuid.UUID = FastAPIPath(..., description="Workflow ID (UUID)")
+    ) -> WorkflowApiRecord:
+        [db_conn, db_cursor] = self.db.connect()
+
+        workflow_record: WorkflowRecord = self.db.read_object_by_id(db_conn, db_cursor, WorkflowRecord.table_name(),
+                                                                    "Workflow", workflow_id, None)
+        if not workflow_record:
+            db_conn.close()
+            raise HTTPException(status_code=404, detail=f"No workflow found by id '{str(workflow_id)}'.")
+        workflow: Workflow = workflow_record.convert_to_object()
+        workflow_api_record: WorkflowApiRecord = WorkflowApiRecord.from_object(workflow)
+        if not workflow_api_record:
+            db_conn.close()
+            raise HTTPException(status_code=404, detail=f"No workflow found by id '{str(workflow_id)}'.")
+        db_conn.close()
+        return workflow_api_record
+
+    async def run_workflow_by_id(
+            self,
+            workflow_id: uuid.UUID = FastAPIPath(..., description="Workflow ID (UUID)")
+    ) -> WorkflowApiRecord:
+        [db_conn, db_cursor] = self.db.connect()
+
+        workflow_record: WorkflowRecord = self.db.read_object_by_id(db_conn, db_cursor, WorkflowRecord.table_name(),
+                                                                    "Workflow", workflow_id, None)
+        if not workflow_record:
+            db_conn.close()
+            raise HTTPException(status_code=404, detail=f"No workflow found by id '{str(workflow_id)}'.")
+        workflow: Workflow = workflow_record.convert_to_object()
+        # Read actual steps content
+        workflow_steps: List[WorkflowStep] = []
+        for workflow_step_id in workflow.workflow_step_ids.object_ids:
+            workflow_step_record: WorkflowStepRecord = self.db.read_object_by_id(db_conn, db_cursor,
+                                                                                 WorkflowStepRecord.table_name(),
+                                                                                 "WorkflowStep", workflow_step_id,
+                                                                                 None)
+            workflow_steps.append(workflow_step_record.convert_to_object())
+        # Set actual steps content to workflow before running it
+        workflow.load_steps(workflow_steps)
+        workflow.run_workflow()
+
+        # Return record
+        workflow_api_record: WorkflowApiRecord = WorkflowApiRecord.from_object(workflow)
+        if not workflow_api_record:
+            db_conn.close()
+            raise HTTPException(status_code=404, detail=f"No workflow found by id '{str(workflow_id)}'.")
+        db_conn.close()
+        return workflow_api_record
 
 
 # Mount the router

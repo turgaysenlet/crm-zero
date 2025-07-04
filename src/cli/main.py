@@ -6,6 +6,7 @@ from src.core.access.access_type import AccessType
 from src.core.access.profile import Profile
 from src.core.access.user import User
 from src.core.eventbus.workflow import Workflow
+from src.core.eventbus.workflow_step import WorkflowStep
 from src.core.objects.account import Account
 from src.core.objects.case import Case
 from src.core.reference.object_reference import ObjectReference
@@ -17,6 +18,7 @@ from src.db.case_record import CaseRecord
 from src.db.profile_record import ProfileRecord
 from src.db.user_record import UserRecord
 from src.db.workflow_record import WorkflowRecord
+from src.db.workflow_step_record import WorkflowStepRecord
 
 logging.basicConfig()
 logger = logging.getLogger("CLI Main")
@@ -69,8 +71,17 @@ def main(clean_db: bool = False):
                                 owner_id=ObjectReference.from_object(support_agent_user1),
                                 description="Account 1 - Description")
 
+    workflow1_step: WorkflowStep = WorkflowStep(owner_id=ObjectReference.from_object(support_agent_user1),
+                                                workflow_step_name="WorkflowStep1",
+                                                workflow_step_code='print("Step1")')
+
+    workflow2_step: WorkflowStep = WorkflowStep(owner_id=ObjectReference.from_object(support_agent_user1),
+                                                workflow_step_name="WorkflowStep2",
+                                                workflow_step_code='print("Step2")')
+
     workflow1: Workflow = Workflow(owner_id=ObjectReference.from_object(support_agent_user1),
-                                   workflow_name="Workflow1", workflow_step_ids=ObjectReferenceList.from_list([]))
+                                   workflow_name="Workflow1",
+                                   workflow_step_ids=ObjectReferenceList.from_list([workflow1_step, workflow2_step]))
 
     case1: Case = Case(owner_id=ObjectReference.from_object(support_agent_user1),
                        account_id=ObjectReference.from_object(account1),
@@ -82,40 +93,33 @@ def main(clean_db: bool = False):
                        description="Case 2 - Description")
 
     # Create and write database records for accounts
-    workflow_record1: WorkflowRecord = WorkflowRecord.from_object(workflow1)
-    workflow_record1.insert_to_db(db_conn, db_cursor)
+    WorkflowStepRecord.from_object(workflow1_step).insert_or_replace_to_db(db_conn, db_cursor)
+    WorkflowStepRecord.from_object(workflow2_step).insert_or_replace_to_db(db_conn, db_cursor)
 
-    account_record1: AccountRecord = AccountRecord.from_object(account1)
-    account_record1.insert_to_db(db_conn, db_cursor)
+    WorkflowRecord.from_object(workflow1).insert_or_replace_to_db(db_conn, db_cursor)
+
+    AccountRecord.from_object(account1).insert_or_replace_to_db(db_conn, db_cursor)
 
     # Create and write database records for cases
-    case_record1: CaseRecord = CaseRecord.from_object(case1)
-    case_record1.insert_to_db(db_conn, db_cursor)
-    case_record2: CaseRecord = CaseRecord.from_object(case2)
-    case_record2.insert_to_db(db_conn, db_cursor)
+    CaseRecord.from_object(case1).insert_or_replace_to_db(db_conn, db_cursor)
+    CaseRecord.from_object(case2).insert_or_replace_to_db(db_conn, db_cursor)
 
     # Create and write database records for profiles, but overwrite if exists
-    profile_record1: ProfileRecord = ProfileRecord.from_object(administrator_profile)
-    profile_record1.insert_or_replace_to_db(db_conn, db_cursor)
-    profile_record2: ProfileRecord = ProfileRecord.from_object(support_agent_profile)
-    profile_record2.insert_or_replace_to_db(db_conn, db_cursor)
-    profile_record3: ProfileRecord = ProfileRecord.from_object(sales_agent_profile)
-    profile_record3.insert_or_replace_to_db(db_conn, db_cursor)
+    ProfileRecord.from_object(administrator_profile).insert_or_replace_to_db(db_conn, db_cursor)
+    ProfileRecord.from_object(support_agent_profile).insert_or_replace_to_db(db_conn, db_cursor)
+    ProfileRecord.from_object(sales_agent_profile).insert_or_replace_to_db(db_conn, db_cursor)
 
     # Create and write database records for users, but overwrite if exists
-    user_record1: UserRecord = UserRecord.from_object(administrator1)
-    user_record1.insert_or_replace_to_db(db_conn, db_cursor)
-    user_record2: UserRecord = UserRecord.from_object(support_agent_user1)
-    user_record2.insert_or_replace_to_db(db_conn, db_cursor)
-    user_record3: UserRecord = UserRecord.from_object(sales_agent_user1)
-    user_record3.insert_or_replace_to_db(db_conn, db_cursor)
+    UserRecord.from_object(administrator1).insert_or_replace_to_db(db_conn, db_cursor)
+    UserRecord.from_object(support_agent_user1).insert_or_replace_to_db(db_conn, db_cursor)
+    UserRecord.from_object(sales_agent_user1).insert_or_replace_to_db(db_conn, db_cursor)
 
     support_agent_cases = db.read_objects(db_conn, db_cursor, CaseRecord.table_name(), "Case", support_agent_user1)
     logger.info(f"Cases readable by support agent (total: {len(support_agent_cases)}): "
                 f"{[str(case) for case in support_agent_cases]}")
     sales_agent_cases = db.read_objects(db_conn, db_cursor, CaseRecord.table_name(), "Case", sales_agent_user1)
     logger.info(f"Cases readable by sales agent (total: {len(sales_agent_cases)}): "
-                f"{[str(case)  for case in sales_agent_cases]}")
+                f"{[str(case) for case in sales_agent_cases]}")
 
     logger.debug("Stopping CLI")
 

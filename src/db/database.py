@@ -16,6 +16,7 @@ from src.db.case_record import CaseRecord
 from src.db.profile_record import ProfileRecord
 from src.db.user_record import UserRecord
 from src.db.workflow_record import WorkflowRecord
+from src.db.workflow_step_record import WorkflowStepRecord
 
 logging.basicConfig()
 logger = logging.getLogger("Database")
@@ -60,6 +61,7 @@ class Database(BaseModel):
         self.create_table(conn, cursor, UserRecord.table_definition())
         self.create_table(conn, cursor, ProfileRecord.table_definition())
         self.create_table(conn, cursor, WorkflowRecord.table_definition())
+        self.create_table(conn, cursor, WorkflowStepRecord.table_definition())
 
         conn.commit()
         conn.close()
@@ -198,6 +200,8 @@ class Database(BaseModel):
                     return [ProfileRecord.from_db_row(row) for row in rows]
                 elif object_type_str == "Workflow":
                     return [WorkflowRecord.from_db_row(row) for row in rows]
+                elif object_type_str == "WorkflowStep":
+                    return [WorkflowStepRecord.from_db_row(row) for row in rows]
                 else:
                     # Unexpected object type
                     logger.warning(f'Unexpected object type "{object_type_str}".')
@@ -233,6 +237,8 @@ class Database(BaseModel):
                     return ProfileRecord.from_db_row(row)
                 elif object_type_str == "Workflow":
                     return WorkflowRecord.from_db_row(row)
+                elif object_type_str == "WorkflowStep":
+                    return WorkflowStepRecord.from_db_row(row)
                 else:
                     # Unexpected object type
                     logger.warning(f'Unexpected object type "{object_type_str}".')
