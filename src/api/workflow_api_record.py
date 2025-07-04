@@ -77,6 +77,7 @@ class WorkflowApiRecord(BaseModel):
         obj: Workflow = Workflow(
             id=uuid.UUID(self.id),
             owner_id=ObjectReference.from_json_string(self.owner_id),
+            workflow_name=self.workflow_name,
             workflow_step_ids=self.workflow_step_ids,
             description=self.description,
             created_at=self.created_at,

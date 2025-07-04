@@ -11,12 +11,16 @@ from src.core.access.access_rule import AccessRule
 from src.core.access.profile import Profile
 from src.core.access.user import User
 from src.core.base.data_object import DataObject
+from src.core.eventbus.workflow import Workflow
+from src.core.eventbus.workflow_step import WorkflowStep
+from src.core.eventbus.workflow_trigger import WorkflowTrigger
 from src.db.account_record import AccountRecord
 from src.db.case_record import CaseRecord
 from src.db.profile_record import ProfileRecord
 from src.db.user_record import UserRecord
 from src.db.workflow_record import WorkflowRecord
 from src.db.workflow_step_record import WorkflowStepRecord
+from src.db.workflow_trigger_record import WorkflowTriggerRecord
 
 logging.basicConfig()
 logger = logging.getLogger("Database")
@@ -62,6 +66,7 @@ class Database(BaseModel):
         self.create_table(conn, cursor, ProfileRecord.table_definition())
         self.create_table(conn, cursor, WorkflowRecord.table_definition())
         self.create_table(conn, cursor, WorkflowStepRecord.table_definition())
+        self.create_table(conn, cursor, WorkflowTriggerRecord.table_definition())
 
         conn.commit()
         conn.close()
@@ -175,7 +180,8 @@ class Database(BaseModel):
             logger.error(f"Error listing table '{AccountRecord.table_name()}': {e}")
             return max_account_number
 
-    def read_objects(self, conn: Connection, cursor: Cursor, table_name: str, object_type_str: str, user: Optional[User]) -> [DataObject]:
+    def read_objects(self, conn: Connection, cursor: Cursor, table_name: str, object_type_str: str,
+                     user: Optional[User]) -> [DataObject]:
         """
         Read all records from the specified table, by applying user based access rules.
         Returns object of the given type.
@@ -202,6 +208,8 @@ class Database(BaseModel):
                     return [WorkflowRecord.from_db_row(row) for row in rows]
                 elif object_type_str == "WorkflowStep":
                     return [WorkflowStepRecord.from_db_row(row) for row in rows]
+                elif object_type_str == "WorkflowTrigger":
+                    return [WorkflowTriggerRecord.from_db_row(row) for row in rows]
                 else:
                     # Unexpected object type
                     logger.warning(f'Unexpected object type "{object_type_str}".')
@@ -239,6 +247,8 @@ class Database(BaseModel):
                     return WorkflowRecord.from_db_row(row)
                 elif object_type_str == "WorkflowStep":
                     return WorkflowStepRecord.from_db_row(row)
+                elif object_type_str == "WorkflowTrigger":
+                    return WorkflowTriggerRecord.from_db_row(row)
                 else:
                     # Unexpected object type
                     logger.warning(f'Unexpected object type "{object_type_str}".')
@@ -255,11 +265,61 @@ class Database(BaseModel):
 
     def get_profiles(self, conn: Connection, cursor: Cursor) -> List[Profile]:
         # TODO: Potential infinite stack due to read_objects calling check_access and check_access calling read_objects.
-        profile_records: List[ProfileRecord] = self.read_objects(conn, cursor, ProfileRecord.table_name(), "Profile", None)
+        profile_records: List[ProfileRecord] = self.read_objects(conn, cursor, ProfileRecord.table_name(), "Profile",
+                                                                 None)
+        if not profile_records:
+            return []
         profiles: List[Profile] = [profile_record.convert_to_object() for profile_record in profile_records]
         if not profiles:
             return []
         return profiles
+
+    def init_workflows_and_triggers(self, conn: Connection, cursor: Cursor) -> None:
+        workflow_steps = self.get_workflow_steps(conn, cursor)
+        workflows = self.get_workflows(conn, cursor)
+        workflow_triggers = self.get_workflow_triggers(conn, cursor)
+        for workflow in workflows:
+            workflow.load_steps_from_all_steps(workflow_steps)
+        for workflow_trigger in workflow_triggers:
+            workflow_trigger.load_workflows_from_all_workflows(workflows)
+        Workflow.all_workflows = workflows
+        WorkflowStep.all_workflow_steps = workflow_steps
+        WorkflowTrigger.all_workflow_triggers = workflow_triggers
+
+    def get_workflows(self, conn: Connection, cursor: Cursor) -> List[Workflow]:
+        workflow_records: List[WorkflowRecord] = self.read_objects(conn, cursor, WorkflowRecord.table_name(),
+                                                                   "Workflow", None)
+        if not workflow_records:
+            return []
+        workflows: List[Workflow] = [workflow_record.convert_to_object() for workflow_record in workflow_records]
+        if not workflows:
+            return []
+        return workflows
+
+    def get_workflow_steps(self, conn: Connection, cursor: Cursor) -> List[WorkflowStep]:
+        workflow_step_records: List[WorkflowStepRecord] = self.read_objects(conn, cursor,
+                                                                            WorkflowStepRecord.table_name(),
+                                                                            "WorkflowStep", None)
+        if not workflow_step_records:
+            return []
+        workflow_steps: List[WorkflowStep] = [workflow_step_record.convert_to_object() for workflow_step_record in
+                                              workflow_step_records]
+        if not workflow_steps:
+            return []
+        return workflow_steps
+
+    def get_workflow_triggers(self, conn: Connection, cursor: Cursor) -> List[WorkflowTrigger]:
+        workflow_trigger_records: List[WorkflowTriggerRecord] = self.read_objects(conn, cursor,
+                                                                                  WorkflowTriggerRecord.table_name(),
+                                                                                  "WorkflowTrigger", None)
+        if not workflow_trigger_records:
+            return []
+        workflow_triggers: List[WorkflowTrigger] = [workflow_trigger_record.convert_to_object() for
+                                                    workflow_trigger_record in
+                                                    workflow_trigger_records]
+        if not workflow_triggers:
+            return []
+        return workflow_triggers
 
     def check_access(self, conn: Connection, cursor: Cursor, object_type_str: str, user: User):
         allow_access = AccessRule.object_type_accessible_to_all(object_type_str)

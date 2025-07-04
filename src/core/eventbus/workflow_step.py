@@ -1,6 +1,6 @@
 import logging
 import uuid
-from typing import List
+from typing import List, ClassVar
 
 from src.core.base.data_field import DataField
 from src.core.base.data_object import DataObject
@@ -15,6 +15,8 @@ class WorkflowStep(DataObject):
     owner_id: ObjectReference
     workflow_step_name: str
     workflow_step_code: str
+    # DO NOT serialize, transient only
+    all_workflow_steps: ClassVar[List["WorkflowStep"]] = []
 
     @classmethod
     def get_custom_fields(cls) -> List[DataField]:

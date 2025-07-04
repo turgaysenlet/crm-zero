@@ -4,6 +4,7 @@ from typing import List, Optional, ClassVar
 
 from src.core.base.data_field import DataField
 from src.core.base.data_object import DataObject
+from src.core.eventbus.workflow_trigger import WorkflowTrigger
 from src.core.reference.object_reference import ObjectReference
 
 logging.basicConfig()
@@ -37,3 +38,6 @@ class Account(DataObject):
                          custom_fields=Account.get_custom_fields(),
                          object_type_name="Account")
         logger.debug(f"Creating account: {self}")
+        logger.debug(f"Running account triggers: {self}")
+        WorkflowTrigger.run_matching_triggers("Account", "CREATE", self)
+        logger.debug(f"Done running account triggers: {self}")

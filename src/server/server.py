@@ -10,9 +10,11 @@ from src.api.case_api_record import CaseApiRecord
 from src.api.user_api_record import UserApiRecord
 from src.api.workflow_api_record import WorkflowApiRecord
 from src.api.workflow_step_api_record import WorkflowStepApiRecord
+from src.api.workflow_trigger_api_record import WorkflowTriggerApiRecord
 from src.core.access.user import User
 from src.core.eventbus.workflow import Workflow
 from src.core.eventbus.workflow_step import WorkflowStep
+from src.core.eventbus.workflow_trigger import WorkflowTrigger
 from src.core.objects.account import Account
 from src.core.objects.case import Case
 from src.db.account_record import AccountRecord
@@ -21,6 +23,7 @@ from src.db.database import Database
 from src.db.user_record import UserRecord
 from src.db.workflow_record import WorkflowRecord
 from src.db.workflow_step_record import WorkflowStepRecord
+from src.db.workflow_trigger_record import WorkflowTriggerRecord
 
 app = FastAPI()
 router = APIRouter()
@@ -31,6 +34,7 @@ class Server:
 
     def __init__(self):
         self.init_db()
+
         self.router = APIRouter()
         # LIST
         self.router.add_api_route("/cases", self.get_cases_api_record, response_model=List[CaseApiRecord])
@@ -39,6 +43,8 @@ class Server:
         self.router.add_api_route("/workflows", self.get_workflows_api_record, response_model=List[WorkflowApiRecord])
         self.router.add_api_route("/workflow_steps", self.get_workflow_steps_api_record,
                                   response_model=List[WorkflowStepApiRecord])
+        self.router.add_api_route("/workflow_triggers", self.get_workflow_trigger_api_record,
+                                  response_model=List[WorkflowTriggerApiRecord])
         # LIST with access check
         self.router.add_api_route("/cases_by_username", self.get_cases_by_username, response_model=List[CaseApiRecord])
         # GET with id
@@ -55,8 +61,11 @@ class Server:
         # Connect to database
         self.db = Database(db_name="database/crm.db")
         [db_conn, db_cursor] = self.db.connect()
-        # db.delete_if_exists()
         self.db.init_db_schema(db_conn, db_cursor)
+        # Reconnect after init_db_schema closes the db connection
+        [db_conn, db_cursor] = self.db.connect()
+        # Initialize workflow related object from database
+        self.db.init_workflows_and_triggers(db_conn, db_cursor)
 
     async def get_cases_api_record(self) -> List[CaseApiRecord]:
         [db_conn, db_cursor] = self.db.connect()
@@ -120,8 +129,8 @@ class Server:
         workflow_records: List[WorkflowRecord] = self.db.read_objects(db_conn, db_cursor, WorkflowRecord.table_name(),
                                                                       "Workflow", None)
         workflows: List[Workflow] = [workflow_record.convert_to_object() for workflow_record in workflow_records]
-        workflow_api_records: List[WorkflowApiRecord] = [WorkflowApiRecord.from_object(workflow) for workflow in
-                                                         workflows]
+        workflow_api_records: List[WorkflowApiRecord] = [WorkflowApiRecord.from_object(workflow) for
+                                                         workflow in workflows]
         if not workflow_api_records:
             db_conn.close()
             raise HTTPException(status_code=404, detail=f"No workflows found.")
@@ -136,13 +145,29 @@ class Server:
         workflow_steps: List[WorkflowStep] = [workflow_step_record.convert_to_object() for workflow_step_record in
                                               workflow_step_records]
         workflow_step_api_records: List[WorkflowStepApiRecord] = [WorkflowStepApiRecord.from_object(workflow_step) for
-                                                                  workflow_step in
-                                                                  workflow_steps]
+                                                                  workflow_step in workflow_steps]
         if not workflow_step_api_records:
             db_conn.close()
             raise HTTPException(status_code=404, detail=f"No workflow steps found.")
         db_conn.close()
         return workflow_step_api_records
+
+    async def get_workflow_trigger_api_record(self) -> List[WorkflowTriggerApiRecord]:
+        [db_conn, db_cursor] = self.db.connect()
+        workflow_trigger_records: List[WorkflowTriggerRecord] = self.db.read_objects(db_conn, db_cursor,
+                                                                                     WorkflowTriggerRecord.table_name(),
+                                                                                     "WorkflowTrigger", None)
+        workflow_triggers: List[WorkflowTrigger] = [workflow_trigger_record.convert_to_object() for
+                                                    workflow_trigger_record in workflow_trigger_records]
+        workflow_trigger_api_records: List[WorkflowTriggerApiRecord] = [
+            WorkflowTriggerApiRecord.from_object(workflow_trigger) for
+            workflow_trigger in
+            workflow_triggers]
+        if not workflow_trigger_api_records:
+            db_conn.close()
+            raise HTTPException(status_code=404, detail=f"No workflow triggers found.")
+        db_conn.close()
+        return workflow_trigger_api_records
 
     async def get_workflow_steps_api_record(self) -> List[WorkflowStepApiRecord]:
         [db_conn, db_cursor] = self.db.connect()
@@ -272,7 +297,7 @@ class Server:
             workflow_steps.append(workflow_step_record.convert_to_object())
         # Set actual steps content to workflow before running it
         workflow.load_steps(workflow_steps)
-        workflow.run_workflow()
+        workflow.run_workflow(None, None)
 
         # Return record
         workflow_api_record: WorkflowApiRecord = WorkflowApiRecord.from_object(workflow)

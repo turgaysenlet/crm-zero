@@ -1,10 +1,11 @@
 import logging
 import uuid
-from typing import List, Optional
+from typing import List, Optional, ClassVar
 
 from src.core.base.data_field import DataField
 from src.core.base.data_object import DataObject
 from src.core.eventbus.workflow_step import WorkflowStep
+from src.core.eventbus.workflow_trigger import WorkflowTrigger
 from src.core.reference.object_reference import ObjectReference
 from src.core.reference.object_reference_list import ObjectReferenceList
 
@@ -19,6 +20,7 @@ class Workflow(DataObject):
     workflow_step_ids: Optional[ObjectReferenceList] = None
     # DO NOT serialize, transient only
     workflow_steps: List[WorkflowStep] = []
+    all_workflows: ClassVar[List["Workflow"]] = []
 
     @classmethod
     def get_custom_fields(cls) -> List[DataField]:
@@ -36,8 +38,11 @@ class Workflow(DataObject):
     def load_steps(self, workflow_steps: List[WorkflowStep]):
         self.workflow_steps = workflow_steps
 
-    def run_workflow(self):
-        sender = "1234"
+    def load_steps_from_all_steps(self, workflow_steps: List[WorkflowStep]):
+        object_ids = [str(object_id) for object_id in self.workflow_step_ids.object_ids]
+        self.workflow_steps = [workflow_step for workflow_step in workflow_steps if object_ids.__contains__(str(workflow_step.id))]
+
+    def run_workflow(self, sender: Optional[DataObject], trigger: Optional[WorkflowTrigger]):
         print(f"-Running workflow '{self.workflow_name}' with id '{str(self.id)}'...")
         for workflow_step in self.workflow_steps:
             print(f"---Running step '{workflow_step.workflow_step_name}' with id '{str(workflow_step.id)}'...")

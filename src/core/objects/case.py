@@ -4,6 +4,7 @@ from typing import List, Optional, ClassVar
 
 from src.core.base.data_field import DataField
 from src.core.base.data_object import DataObject
+from src.core.eventbus.workflow_trigger import WorkflowTrigger
 from src.core.reference.object_reference import ObjectReference
 
 logging.basicConfig()
@@ -45,5 +46,8 @@ class Case(DataObject):
                              custom_fields=Case.get_custom_fields(),
                              object_type_name="Case")
             logger.debug(f"Creating case: {self}")
+            logger.debug(f"Running case triggers: {self}")
+            WorkflowTrigger.run_matching_triggers("Case", "CREATE", self)
+            logger.debug(f"Done running case triggers: {self}")
         except Exception as e:
             logger.error(f"Error creating case: {str(e)}")

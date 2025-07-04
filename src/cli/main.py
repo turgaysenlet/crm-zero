@@ -7,6 +7,7 @@ from src.core.access.profile import Profile
 from src.core.access.user import User
 from src.core.eventbus.workflow import Workflow
 from src.core.eventbus.workflow_step import WorkflowStep
+from src.core.eventbus.workflow_trigger import WorkflowTrigger
 from src.core.objects.account import Account
 from src.core.objects.case import Case
 from src.core.reference.object_reference import ObjectReference
@@ -19,6 +20,7 @@ from src.db.profile_record import ProfileRecord
 from src.db.user_record import UserRecord
 from src.db.workflow_record import WorkflowRecord
 from src.db.workflow_step_record import WorkflowStepRecord
+from src.db.workflow_trigger_record import WorkflowTriggerRecord
 
 logging.basicConfig()
 logger = logging.getLogger("CLI Main")
@@ -37,6 +39,8 @@ def main(clean_db: bool = False):
     db.init_db_schema(db_conn, db_cursor)
     # Reconnect after init_db_schema closes the db connection
     [db_conn, db_cursor] = db.connect()
+    # Initialize workflow related object from database
+    db.init_workflows_and_triggers(db_conn, db_cursor)
 
     # Read cases from database
     rows = db.list_table_rows(db_conn, db_cursor, CaseRecord.table_name())
@@ -73,20 +77,30 @@ def main(clean_db: bool = False):
 
     workflow1_step: WorkflowStep = WorkflowStep(owner_id=ObjectReference.from_object(support_agent_user1),
                                                 workflow_step_name="WorkflowStep1",
-                                                workflow_step_code='print("Step1")')
+                                                workflow_step_code='print(f"Step1: sender = {sender}")')
 
     workflow2_step: WorkflowStep = WorkflowStep(owner_id=ObjectReference.from_object(support_agent_user1),
                                                 workflow_step_name="WorkflowStep2",
-                                                workflow_step_code='print("Step2")')
+                                                workflow_step_code='print(f"Step2: trigger = {trigger}")')
 
     workflow3_step: WorkflowStep = WorkflowStep(owner_id=ObjectReference.from_object(support_agent_user1),
                                                 workflow_step_name="WorkflowStep3",
-                                                workflow_step_code='print(f"Step3: sender = {sender}")')
+                                                workflow_step_code='print(f"Step3: {trigger.workflow_trigger_event_type} object of type {trigger.workflow_trigger_object_type_name} with id {sender.id}")')
 
     workflow1: Workflow = Workflow(owner_id=ObjectReference.from_object(support_agent_user1),
                                    workflow_name="Workflow1",
                                    workflow_step_ids=ObjectReferenceList.from_list(
                                        [workflow1_step, workflow2_step, workflow3_step]))
+
+    workflow_trigger1: WorkflowTrigger = WorkflowTrigger(owner_id=ObjectReference.from_object(support_agent_user1),
+                                                         workflow_trigger_object_type_name="Case",
+                                                         workflow_trigger_event_type="CREATE",
+                                                         workflow_to_run_id=ObjectReference.from_object(workflow1))
+
+    workflow_trigger2: WorkflowTrigger = WorkflowTrigger(owner_id=ObjectReference.from_object(support_agent_user1),
+                                                         workflow_trigger_object_type_name="Account",
+                                                         workflow_trigger_event_type="CREATE",
+                                                         workflow_to_run_id=ObjectReference.from_object(workflow1))
 
     case1: Case = Case(owner_id=ObjectReference.from_object(support_agent_user1),
                        account_id=ObjectReference.from_object(account1),
@@ -103,6 +117,9 @@ def main(clean_db: bool = False):
     WorkflowStepRecord.from_object(workflow3_step).insert_or_replace_to_db(db_conn, db_cursor)
 
     WorkflowRecord.from_object(workflow1).insert_or_replace_to_db(db_conn, db_cursor)
+
+    WorkflowTriggerRecord.from_object(workflow_trigger1).insert_or_replace_to_db(db_conn, db_cursor)
+    WorkflowTriggerRecord.from_object(workflow_trigger2).insert_or_replace_to_db(db_conn, db_cursor)
 
     AccountRecord.from_object(account1).insert_or_replace_to_db(db_conn, db_cursor)
 
@@ -126,6 +143,8 @@ def main(clean_db: bool = False):
     sales_agent_cases = db.read_objects(db_conn, db_cursor, CaseRecord.table_name(), "Case", sales_agent_user1)
     logger.info(f"Cases readable by sales agent (total: {len(sales_agent_cases)}): "
                 f"{[str(case) for case in sales_agent_cases]}")
+    all_triggers = db.read_objects(db_conn, db_cursor, WorkflowTriggerRecord.table_name(), "WorkflowTrigger", None)
+    logger.info(f"Workflow triggers (total: {len(all_triggers)}): {[str(trigger) for trigger in all_triggers]}")
 
     logger.debug("Stopping CLI")
 
