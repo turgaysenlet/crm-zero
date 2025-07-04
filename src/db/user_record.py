@@ -22,7 +22,7 @@ class UserRecord(BaseModel):
     username: str
     fullname: str
     password_hash: str
-    profiles: str
+    profile_ids: str
     created_at: float = 0.0
     updated_at: float = 0.0
     commit_at: float = 0.0
@@ -39,7 +39,7 @@ class UserRecord(BaseModel):
                 username TEXT UNIQUE NOT NULL,
                 fullname TEXT NOT NULL,
                 password_hash TEXT NOT NULL,                
-                profiles TEXT,
+                profile_ids TEXT,
                 created_at FLOAT,
                 updated_at FLOAT,
                 commit_at FLOAT,
@@ -49,7 +49,7 @@ class UserRecord(BaseModel):
 
     @classmethod
     def table_fields(cls) -> str:
-        return f'id, username, fullname, password_hash, profiles, created_at, updated_at, commit_at, object_type_name'
+        return f'id, username, fullname, password_hash, profile_ids, created_at, updated_at, commit_at, object_type_name'
 
     @classmethod
     def from_object(cls, obj: User) -> "UserRecord":
@@ -58,7 +58,7 @@ class UserRecord(BaseModel):
             username=str(obj.username),
             fullname=obj.fullname,
             password_hash=obj.password_hash,
-            profiles=json.dumps(obj.profiles.to_json_dict()),
+            profile_ids=obj.profile_ids.to_json_string(),
             created_at=obj.created_at,
             updated_at=obj.updated_at,
             commit_at=obj.commit_at,
@@ -72,7 +72,7 @@ class UserRecord(BaseModel):
             username=row["username"],
             fullname=row["fullname"],
             password_hash=row["password_hash"],
-            profiles=row.get("profiles", ""),
+            profile_ids=row.get("profile_ids", ""),
             created_at=float(row["created_at"]),
             updated_at=float(row["updated_at"]),
             commit_at=float(row["commit_at"]),
@@ -87,7 +87,7 @@ class UserRecord(BaseModel):
         self.commit_at = data.get("commit_at", now)
         logger.debug(f"Creating user record: {self}")
 
-    def insert_to_db(self, conn: Connection, cursor: Cursor):
+    def insert_to_db(self, conn: Connection, cursor: Cursor) -> None:
         now = time.time()
         self.commit_at = now
         query = f"INSERT INTO {UserRecord.table_name()} ({UserRecord.table_fields()}) " \
@@ -95,7 +95,7 @@ class UserRecord(BaseModel):
         logger.debug(f'Running SQL query "{query}"')
         cursor.execute(
             query,
-            (self.id, self.username, self.fullname, self.password_hash, self.profiles, self.created_at, self.updated_at,
+            (self.id, self.username, self.fullname, self.password_hash, self.profile_ids, self.created_at, self.updated_at,
              self.commit_at, self.object_type_name)
         )
         conn.commit()
@@ -108,7 +108,7 @@ class UserRecord(BaseModel):
         logger.debug(f'Running SQL query "{query}"')
         cursor.execute(
             query,
-            (self.id, self.username, self.fullname, self.password_hash, self.profiles, self.created_at, self.updated_at,
+            (self.id, self.username, self.fullname, self.password_hash, self.profile_ids, self.created_at, self.updated_at,
              self.commit_at, self.object_type_name)
         )
         conn.commit()
@@ -118,7 +118,7 @@ class UserRecord(BaseModel):
         self.username = row["username"]
         self.fullname = row["fullname"]
         self.password_hash = row["password_hash"]
-        self.profiles = row.get("profiles", "")
+        self.profile_ids = row.get("profile_ids", "")
         self.created_at = float(row["created_at"])
         self.updated_at = float(row["updated_at"])
         self.commit_at = float(row["commit_at"])
@@ -129,7 +129,7 @@ class UserRecord(BaseModel):
         self.username = obj.username
         self.fullname = obj.fullname
         self.password_hash = obj.password_hash
-        self.profiles = json.dumps(obj.profiles.to_json_dict()),
+        self.profile_ids = obj.profile_ids.to_json_string()
         self.created_at = obj.created_at
         self.updated_at = obj.updated_at
         self.commit_at = obj.commit_at
@@ -141,7 +141,7 @@ class UserRecord(BaseModel):
             username=self.username,
             fullname=self.fullname,
             password_hash=self.password_hash,
-            profiles=ObjectReferenceList.from_string(self.profiles),
+            profile_ids=ObjectReferenceList.from_string(self.profile_ids),
             created_at=self.created_at,
             updated_at=self.updated_at,
             commit_at=self.commit_at,

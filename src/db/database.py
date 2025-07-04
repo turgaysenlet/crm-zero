@@ -203,8 +203,8 @@ class Database(BaseModel):
                            f'but does not have access.')
             return []
 
-    def read_object_by_id(self, conn: Connection, cursor: Cursor, table_name: str, object_type_str: str, object_id: uuid.UUID, user: Optional[User]) \
-            -> Any:
+    def read_object_by_id(self, conn: Connection, cursor: Cursor, table_name: str, object_type_str: str,
+                          object_id: uuid.UUID, user: Optional[User]) -> Any:
         """
         Read all records from the specified table, by applying user based access rules.
         Returns object of the given type.
@@ -216,7 +216,7 @@ class Database(BaseModel):
         allow_access = self.check_access(conn, cursor, object_type_str, user)
         # Read from DB
         if allow_access:
-            rows = self.get_table_row(conn, cursor, table_name)
+            rows = self.get_table_row(conn, cursor, table_name, object_id)
             if rows is not None and len(rows) > 0:
                 row = rows[0]
                 if object_type_str == "Case":
@@ -255,7 +255,7 @@ class Database(BaseModel):
         if user is not None:
             all_profiles = self.get_profiles(conn, cursor)
             all_profiles_dict = {profile.id: profile for profile in all_profiles}
-            for profile_id in user.profiles.object_ids:
+            for profile_id in user.profile_ids.object_ids:
                 found_profile = all_profiles_dict[profile_id]
                 access_rules.extend(found_profile.access_rules)
             data_object_types: List[str] = [access_rule.data_object_type for access_rule in access_rules]

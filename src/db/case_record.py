@@ -94,7 +94,7 @@ class CaseRecord(BaseModel):
         self.commit_at = data.get("commit_at", now)
         logger.debug(f"Creating case record: {self}")
 
-    def insert_to_db(self, conn: Connection, cursor: Cursor):
+    def insert_to_db(self, conn: Connection, cursor: Cursor) -> None:
         now = time.time()
         self.commit_at = now
         query = f"INSERT INTO {CaseRecord.table_name()} ({CaseRecord.table_fields()}) " \
@@ -105,6 +105,7 @@ class CaseRecord(BaseModel):
             (self.id, self.case_number, self.owner_id, self.account_id, self.summary, self.description, self.created_at,
              self.updated_at, self.commit_at, self.object_type_name)
         )
+        Case.last_case_number += 1
         conn.commit()
 
     def read_from_db_row(self, row: Dict[str, Any]) -> None:
@@ -122,8 +123,8 @@ class CaseRecord(BaseModel):
     def read_from_object(self, obj: Case) -> None:
         self.id = str(obj.id)
         self.case_number = obj.case_number
-        self.owner_id = str(obj.owner_id)
-        self.account_id = str(obj.account_id)
+        self.owner_id = obj.owner_id.to_json_str()
+        self.account_id = obj.account_id.to_json_str()
         self.summary = obj.summary
         self.description = obj.description
         self.created_at = obj.created_at

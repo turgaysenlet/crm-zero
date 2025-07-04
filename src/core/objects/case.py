@@ -28,11 +28,16 @@ class Case(DataObject):
         return f"{number:08d}"
 
     def __init__(self, **data):
-        # Increment the case number before creating a new case
-        Case.last_case_number += 1
+        existing_case: bool = data.__contains__("id")
+        if existing_case:
+            case_number = data["case_number"]
+        else:
+            # Increment the case number before creating a new case
+            Case.last_case_number += 1
+            case_number = Case.case_number_from_number(Case.last_case_number)
         try:
             super().__init__(id=data.get("id", uuid.uuid4()),
-                             case_number=Case.case_number_from_number(Case.last_case_number),
+                             case_number=case_number,
                              owner_id=data["owner_id"],
                              account_id=data["account_id"],
                              summary=data["summary"],
@@ -41,6 +46,4 @@ class Case(DataObject):
                              object_type_name="Case")
             logger.debug(f"Creating case: {self}")
         except Exception as e:
-            # Decrement back to orginal if creation failed.
-            Case.last_case_number -= 1
             logger.error(f"Error creating case: {str(e)}")

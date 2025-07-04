@@ -57,11 +57,11 @@ def main(clean_db: bool = False):
     support_agent_profile: Profile = Profile(name="Support Agent", access_rules=[case_full_access])
     sales_agent_profile: Profile = Profile(name="Sales Agent", access_rules=[])
     administrator1: User = User(username="admin", fullname="Administrator",
-                                profiles=ObjectReferenceList.from_list([administrator_profile]))
+                                profile_ids=ObjectReferenceList.from_list([administrator_profile]))
     support_agent_user1: User = User(username="jilljohns", fullname="Jill Johns",
-                                     profiles=ObjectReferenceList.from_list([support_agent_profile]))
+                                     profile_ids=ObjectReferenceList.from_list([support_agent_profile]))
     sales_agent_user1: User = User(username="jackhills", fullname="Jack Hills",
-                                   profiles=ObjectReferenceList.from_list([sales_agent_profile]))
+                                   profile_ids=ObjectReferenceList.from_list([sales_agent_profile]))
 
     account1: Account = Account(account_name="Account 1",
                                 owner_id=ObjectReference.from_object(support_agent_user1),

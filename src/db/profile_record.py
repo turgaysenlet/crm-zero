@@ -85,7 +85,7 @@ class ProfileRecord(BaseModel):
         self.commit_at = data.get("commit_at", now)
         logger.debug(f"Creating profile record: {self}")
 
-    def insert_to_db(self, conn: Connection, cursor: Cursor):
+    def insert_to_db(self, conn: Connection, cursor: Cursor) -> None:
         now = time.time()
         self.commit_at = now
         query = f"INSERT INTO {ProfileRecord.table_name()} ({ProfileRecord.table_fields()}) " \

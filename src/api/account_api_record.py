@@ -6,6 +6,7 @@ from typing import Optional, Dict
 from pydantic import BaseModel
 
 from src.core.objects.account import Account
+from src.core.reference.object_reference import ObjectReference
 
 logging.basicConfig()
 logger = logging.getLogger("AccountApiRecord")
@@ -59,10 +60,10 @@ class AccountApiRecord(BaseModel):
         self.commit_at = data.get("commit_at", now)
         logger.debug(f"Creating account record: {self}")
 
-    def read_from_object(self, obj: Account):
+    def read_from_object(self, obj: Account) -> None:
         self.id = str(obj.id)
         self.account_number = obj.account_number
-        self.owner_id = str(obj.owner_id),
+        self.owner_id = obj.owner_id.to_json_str(),
         self.account_name = obj.account_name
         self.description = obj.description
         self.created_at = obj.created_at
@@ -74,7 +75,7 @@ class AccountApiRecord(BaseModel):
         obj: Account = Account(
             id=uuid.UUID(self.id),
             account_number=self.account_number,
-            owner_id=uuid.UUID(self.owner_id),
+            owner_id=ObjectReference.from_json_string(self.owner_id),
             account_name=self.account_name,
             description=self.description,
             created_at=self.created_at,

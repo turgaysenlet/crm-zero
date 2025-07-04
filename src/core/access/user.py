@@ -15,7 +15,7 @@ class User(DataObject):
     username: str
     fullname: str
     password_hash: str
-    profiles: Optional[ObjectReferenceList] = None
+    profile_ids: Optional[ObjectReferenceList] = None
 
     @classmethod
     def get_custom_fields(cls) -> List[DataField]:
@@ -26,7 +26,7 @@ class User(DataObject):
                          username=data["username"],
                          fullname=data["fullname"],
                          password_hash=data.get("password_hash", ""),
-                         profiles=data["profiles"],
+                         profile_ids=data["profile_ids"],
                          custom_fields=User.get_custom_fields(),
                          object_type_name="User")
         logger.debug(f"Creating user: {self}")

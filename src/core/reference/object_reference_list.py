@@ -26,6 +26,9 @@ class ObjectReferenceList(BaseModel):
             "object_ids": [str(uid) for uid in self.object_ids]
         }
 
+    def to_json_string(self) -> str:
+        return json.dumps(self.to_json_dict())
+
     @classmethod
     def from_list(cls, object_list: List[DataObject]) -> Optional["ObjectReferenceList"]:
         if object_list is None or len(object_list) == 0:

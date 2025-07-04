@@ -31,7 +31,7 @@ class UserApiRecord(BaseModel):
             username=str(obj.username),
             fullname=obj.fullname,
             password_hash=obj.password_hash,
-            profile_ids=obj.profiles,
+            profile_ids=obj.profile_ids.to_json_string(),
             created_at=obj.created_at,
             updated_at=obj.updated_at,
             commit_at=obj.commit_at,
@@ -64,12 +64,12 @@ class UserApiRecord(BaseModel):
         self.commit_at = data.get("commit_at", now)
         logger.debug(f"Creating user record: {self}")
 
-    def read_from_object(self, obj: User):
+    def read_from_object(self, obj: User) -> None:
         self.id = str(obj.id)
         self.username = obj.username
         self.fullname = obj.fullname
         self.password_hash = obj.password_hash
-        self.profile_ids = obj.profiles
+        self.profile_ids = obj.profile_ids.to_json_string()
         self.created_at = obj.created_at
         self.updated_at = obj.updated_at
         self.commit_at = obj.commit_at
@@ -80,7 +80,7 @@ class UserApiRecord(BaseModel):
             id=uuid.UUID(self.id),
             fullname=uuid.UUID(self.owner_id),
             password_hash=self.password_hash,
-            profiles=self.profile_ids,
+            profile_ids=self.profile_ids,
             description=self.description,
             created_at=self.created_at,
             updated_at=self.updated_at,

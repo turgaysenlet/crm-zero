@@ -29,7 +29,7 @@ class ObjectReference(BaseModel):
         j = json.loads(json_str or {})
         return ObjectReference(object_type_name=j["object_type_name"], object_id=uuid.UUID(j["object_id"]))
 
-    def to_json_str(self):
+    def to_json_str(self) -> str:
         di = self.dict()
         new_dict = {}
         for (k, v) in di.items():

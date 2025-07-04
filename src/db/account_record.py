@@ -7,6 +7,7 @@ from typing import Optional, Dict, Any
 from pydantic import BaseModel
 
 from src.core.objects.account import Account
+from src.core.reference.object_reference import ObjectReference
 
 logging.basicConfig()
 logger = logging.getLogger("AccountRecord")
@@ -89,7 +90,7 @@ class AccountRecord(BaseModel):
         self.commit_at = data.get("commit_at", now)
         logger.debug(f"Creating account record: {self}")
 
-    def insert_to_db(self, conn: Connection, cursor: Cursor):
+    def insert_to_db(self, conn: Connection, cursor: Cursor) -> None:
         now = time.time()
         self.commit_at = now
         query = f"INSERT INTO {AccountRecord.table_name()} ({AccountRecord.table_fields()}) " \
@@ -116,7 +117,7 @@ class AccountRecord(BaseModel):
     def read_from_object(self, obj: Account) -> None:
         self.id = str(obj.id)
         self.account_number = obj.account_number
-        self.owner_id = obj.owner_id
+        self.owner_id = obj.owner_id.to_json_str()
         self.account_name = obj.account_name
         self.description = obj.description
         self.created_at = obj.created_at
@@ -128,7 +129,7 @@ class AccountRecord(BaseModel):
         obj: Account = Account(
             id=uuid.UUID(self.id),
             account_number=self.account_number,
-            owner_id=uuid.UUID(self.owner_id),
+            owner_id=ObjectReference.from_json_string(self.owner_id),
             account_name=self.account_name,
             description=self.description,
             created_at=self.created_at,

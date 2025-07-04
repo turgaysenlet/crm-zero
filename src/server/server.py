@@ -104,7 +104,7 @@ class Server:
         [db_conn, db_cursor] = self.db.connect()
         user_records: List[UserRecord] = self.db.read_objects(db_conn, db_cursor, UserRecord.table_name(), "User", None)
         all_profiles = self.db.get_profiles(db_conn, db_cursor)
-        users: List[User] = [user_record.convert_to_object(all_profiles) for user_record in user_records]
+        users: List[User] = [user_record.convert_to_object() for user_record in user_records]
         user = next((u for u in users if u.username == username), None)
         db_conn.close()
         return user
@@ -139,7 +139,10 @@ class Server:
             db_conn.close()
             raise HTTPException(status_code=404, detail=f"User '{username}' not found.")
         else:
-            case_record: CaseRecord = self.db.read_object_with_id(db_conn, db_cursor, CaseRecord.table_name(), "Case", case_id, user)
+            case_record: CaseRecord = self.db.read_object_by_id(db_conn, db_cursor, CaseRecord.table_name(), "Case", case_id, user)
+            if not case_record:
+                db_conn.close()
+                raise HTTPException(status_code=404, detail=f"No case found for user '{username}'.")
             _case: Case = case_record.convert_to_object()
             case_api_record: CaseApiRecord = CaseApiRecord.from_object(_case)
             # Username based filtering
@@ -161,15 +164,18 @@ class Server:
             db_conn.close()
             raise HTTPException(status_code=404, detail=f"User '{username}' not found.")
         else:
-            account_record: AccountRecord = self.db.read_object_with_id(db_conn, db_cursor, AccountRecord.table_name(),
+            account_record: AccountRecord = self.db.read_object_by_id(db_conn, db_cursor, AccountRecord.table_name(),
                                                                         "Account", account_id, user)
+            if not account_record:
+                db_conn.close()
+                raise HTTPException(status_code=404, detail=f"No account found for user '{username}'.")
             account: Account = account_record.convert_to_object()
             account_api_record: AccountApiRecord = AccountApiRecord.from_object(account)
             # Username based filtering
             # user_accounts = [account for account in DUMMY_ACCOUNTS if account.owner_id == username]
             if not account_api_record:
                 db_conn.close()
-                raise HTTPException(status_code=404, detail=f"No accounts found for user '{username}'.")
+                raise HTTPException(status_code=404, detail=f"No account found for user '{username}'.")
             db_conn.close()
             return account_api_record
 
