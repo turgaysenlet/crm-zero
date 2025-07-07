@@ -42,10 +42,6 @@ def main(clean_db: bool = False):
     # Initialize workflow related object from database
     db.init_workflows_and_triggers(db_conn, db_cursor)
 
-    # Read cases from database
-    rows = db.list_table_rows(db_conn, db_cursor, CaseRecord.table_name())
-    logger.info(f"Cases rows: {rows}")
-
     # Grab the maximum case number from database
     # This is synced once per session, rest is incremented in memory per construction
     Case.last_case_number = db.read_max_case_number(db_conn, db_cursor)
@@ -83,9 +79,12 @@ def main(clean_db: bool = False):
                                                 workflow_step_name="WorkflowStep2",
                                                 workflow_step_code='print(f"Step2: trigger = {trigger}")')
 
-    workflow3_step: WorkflowStep = WorkflowStep(owner_id=ObjectReference.from_object(support_agent_user1),
-                                                workflow_step_name="WorkflowStep3",
-                                                workflow_step_code='print(f"Step3: {trigger.workflow_trigger_event_type} object of type {trigger.workflow_trigger_object_type_name} with id {sender.id}")')
+    workflow3_step: WorkflowStep = WorkflowStep(
+        owner_id=ObjectReference.from_object(support_agent_user1),
+        workflow_step_name="WorkflowStep3",
+        workflow_step_code=
+        'print(f"Step3: {trigger.workflow_trigger_event_type} object of type '
+        '{trigger.workflow_trigger_object_type_name} with id {sender.id}")')
 
     workflow1: Workflow = Workflow(owner_id=ObjectReference.from_object(support_agent_user1),
                                    workflow_name="Workflow1",
@@ -136,6 +135,10 @@ def main(clean_db: bool = False):
     UserRecord.from_object(administrator1).insert_or_replace_to_db(db_conn, db_cursor)
     UserRecord.from_object(support_agent_user1).insert_or_replace_to_db(db_conn, db_cursor)
     UserRecord.from_object(sales_agent_user1).insert_or_replace_to_db(db_conn, db_cursor)
+
+    # Read cases from database
+    rows = db.list_table_rows(db_conn, db_cursor, CaseRecord.table_name())
+    logger.info(f"Cases rows: {rows}")
 
     support_agent_cases = db.read_objects(db_conn, db_cursor, CaseRecord.table_name(), "Case", support_agent_user1)
     logger.info(f"Cases readable by support agent (total: {len(support_agent_cases)}): "
