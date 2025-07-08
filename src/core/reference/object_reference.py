@@ -21,6 +21,10 @@ class ObjectReference(BaseModel):
         logger.debug(f"Creating object reference: {self}")
 
     @classmethod
+    def from_type_and_id(cls, object_type_name: str, object_id: str) -> Optional["ObjectReference"]:
+        return ObjectReference(object_type_name=object_type_name, object_id=object_id)
+
+    @classmethod
     def from_object(cls, data_object: DataObject) -> Optional["ObjectReference"]:
         return ObjectReference(object_type_name=data_object.object_type_name, object_id=data_object.id)
 
@@ -39,4 +43,3 @@ class ObjectReference(BaseModel):
                 v = str(v)
             new_dict[k] = v
         return json.dumps(new_dict)
-

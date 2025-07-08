@@ -86,10 +86,33 @@ def main(clean_db: bool = False):
         'print(f"Step3: {trigger.workflow_trigger_event_type} object of type '
         '{trigger.workflow_trigger_object_type_name} with id {sender.id}")')
 
+    workflow4_step: WorkflowStep = WorkflowStep(
+        owner_id=ObjectReference.from_object(support_agent_user1),
+        workflow_step_name="WorkflowStep4",
+        workflow_step_code='''
+from src.util.email_sender import EmailSender
+email_sender: EmailSender = EmailSender()
+
+object_number: str = ""
+summary: str = ""
+if trigger.workflow_trigger_object_type_name == "Case":
+    object_number = sender.case_number
+    summary = f" - {sender.summary}"
+elif trigger.workflow_trigger_object_type_name == "Account":
+    object_number = sender.account_number
+    
+    
+email_sender.send_mail(
+    receiver_email="turgaysenlet@gmail.com",
+    subject=f"{trigger.workflow_trigger_event_type} {trigger.workflow_trigger_object_type_name} - {object_number} {summary}",
+    body=f"{trigger.workflow_trigger_object_type_name} {trigger.workflow_trigger_object_type_name} - {object_number} - id: {sender.id}\\r\\n\\r\\n{sender}\\r\\n\\r\\nCRM-Zero")
+'''
+        )
+
     workflow1: Workflow = Workflow(owner_id=ObjectReference.from_object(support_agent_user1),
                                    workflow_name="Workflow1",
                                    workflow_step_ids=ObjectReferenceList.from_list(
-                                       [workflow1_step, workflow2_step, workflow3_step]))
+                                       [workflow1_step, workflow2_step, workflow3_step, workflow4_step]))
 
     workflow_trigger1: WorkflowTrigger = WorkflowTrigger(owner_id=ObjectReference.from_object(support_agent_user1),
                                                          workflow_trigger_object_type_name="Case",
@@ -114,6 +137,7 @@ def main(clean_db: bool = False):
     WorkflowStepRecord.from_object(workflow1_step).insert_or_replace_to_db(db_conn, db_cursor)
     WorkflowStepRecord.from_object(workflow2_step).insert_or_replace_to_db(db_conn, db_cursor)
     WorkflowStepRecord.from_object(workflow3_step).insert_or_replace_to_db(db_conn, db_cursor)
+    WorkflowStepRecord.from_object(workflow4_step).insert_or_replace_to_db(db_conn, db_cursor)
 
     WorkflowRecord.from_object(workflow1).insert_or_replace_to_db(db_conn, db_cursor)
 

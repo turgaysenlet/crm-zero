@@ -47,7 +47,14 @@ class Case(DataObject):
                              object_type_name="Case")
             logger.debug(f"Creating case: {self}")
             logger.debug(f"Running case triggers: {self}")
-            WorkflowTrigger.run_matching_triggers("Case", "CREATE", self)
+            # Run triggers only when the case is brand new, not a copy of an existing case
+            # TODO: Run triggers ar database commit time
+            if not existing_case:
+                WorkflowTrigger.run_matching_triggers("Case", "CREATE", self)
             logger.debug(f"Done running case triggers: {self}")
         except Exception as e:
             logger.error(f"Error creating case: {str(e)}")
+
+    def __str__(self):
+        return self.model_dump_json(indent=2)
+

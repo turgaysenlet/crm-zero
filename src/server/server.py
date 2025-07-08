@@ -1,3 +1,4 @@
+import logging
 import uuid
 from typing import List, Optional
 
@@ -7,6 +8,8 @@ from fastapi import Path as FastAPIPath
 
 from src.api.account_api_record import AccountApiRecord
 from src.api.case_api_record import CaseApiRecord
+from src.api.requrests.account_create_request_api_record import AccountCreateRequestApiRecord
+from src.api.requrests.case_create_request_api_record import CaseCreateRequestApiRecord
 from src.api.user_api_record import UserApiRecord
 from src.api.workflow_api_record import WorkflowApiRecord
 from src.api.workflow_step_api_record import WorkflowStepApiRecord
@@ -25,17 +28,23 @@ from src.db.workflow_record import WorkflowRecord
 from src.db.workflow_step_record import WorkflowStepRecord
 from src.db.workflow_trigger_record import WorkflowTriggerRecord
 
+logging.basicConfig()
+logger = logging.getLogger("Server")
+logger.setLevel(logging.DEBUG)
+
 app = FastAPI()
-router = APIRouter()
 
 
 class Server:
     db: Database
 
     def __init__(self):
+        logger.info("Initializing server")
+        logger.info("Initializing database")
         self.init_db()
-
+        logger.info("Initializing API router")
         self.router = APIRouter()
+        logger.info("Adding API routes")
         # LIST
         self.router.add_api_route("/cases", self.get_cases_api_record, response_model=List[CaseApiRecord])
         self.router.add_api_route("/accounts", self.get_accounts_api_record, response_model=List[AccountApiRecord])
@@ -45,6 +54,7 @@ class Server:
                                   response_model=List[WorkflowStepApiRecord])
         self.router.add_api_route("/workflow_triggers", self.get_workflow_trigger_api_record,
                                   response_model=List[WorkflowTriggerApiRecord])
+
         # LIST with access check
         self.router.add_api_route("/cases_by_username", self.get_cases_by_username, response_model=List[CaseApiRecord])
         # GET with id
@@ -54,8 +64,14 @@ class Server:
                                   response_model=AccountApiRecord, methods=["GET"])
         self.router.add_api_route("/workflow/{workflow_id}", self.get_workflow_by_id,
                                   response_model=WorkflowApiRecord, methods=["GET"])
+
         self.router.add_api_route("/run/workflow/{workflow_id}", self.run_workflow_by_id,
                                   response_model=WorkflowApiRecord, methods=["GET"])
+
+        self.router.add_api_route("/case", self.create_case, response_model=CaseApiRecord, methods=["POST"])
+        self.router.add_api_route("/account", self.create_account, response_model=AccountApiRecord, methods=["POST"])
+
+        logger.info(f"Done initializing server with {len(self.router.routes)} API routes defined")
 
     def init_db(self):
         # Connect to database
@@ -66,6 +82,14 @@ class Server:
         [db_conn, db_cursor] = self.db.connect()
         # Initialize workflow related object from database
         self.db.init_workflows_and_triggers(db_conn, db_cursor)
+
+        # Grab the maximum case number from database
+        # This is synced once per session, rest is incremented in memory per construction
+        Case.last_case_number = self.db.read_max_case_number(db_conn, db_cursor)
+
+        # Grab the maximum account number from database
+        # This is synced once per session, rest is incremented in memory per construction
+        Account.last_account_number = self.db.read_max_account_number(db_conn, db_cursor)
 
     async def get_cases_api_record(self) -> List[CaseApiRecord]:
         [db_conn, db_cursor] = self.db.connect()
@@ -84,6 +108,34 @@ class Server:
                 raise HTTPException(status_code=404, detail=f"No cases found.")
             db_conn.close()
             return case_api_records
+
+    async def create_case(self, create_case_request: CaseCreateRequestApiRecord) -> CaseApiRecord:
+        [db_conn, db_cursor] = self.db.connect()
+        # TODO: Validate existence of owner_id and account_id in the database/live
+        # TODO: Validate user access rules for create case
+        # Create live case object
+        case1: Case = create_case_request.create_case()
+        # Commit to databasse
+        case_record: CaseRecord = CaseRecord.from_object(case1)
+        case_record.insert_to_db(db_conn, db_cursor)
+        # Get the up-to-date database version of the object into memory object
+        case1 = case_record.convert_to_object()
+        case_api_record: CaseApiRecord = CaseApiRecord.from_object(case1)
+        return case_api_record
+
+    async def create_account(self, create_account_request: AccountCreateRequestApiRecord) -> AccountApiRecord:
+        [db_conn, db_cursor] = self.db.connect()
+        # TODO: Validate existence of owner_id in the database/live
+        # TODO: Validate user access rules for create account
+        # Create live account object
+        account1: Account = create_account_request.create_account()
+        # Commit to databasse
+        account_record: AccountRecord = AccountRecord.from_object(account1)
+        account_record.insert_to_db(db_conn, db_cursor)
+        # Get the up-to-date database version of the object into memory object
+        account1 = account_record.convert_to_object()
+        account_api_record: AccountApiRecord = AccountApiRecord.from_object(account1)
+        return account_api_record
 
     async def get_accounts_api_record(self) -> List[AccountApiRecord]:
         [db_conn, db_cursor] = self.db.connect()

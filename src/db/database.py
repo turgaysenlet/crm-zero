@@ -28,8 +28,6 @@ logger.setLevel(logging.DEBUG)
 
 
 class Database(BaseModel):
-    model_config = ConfigDict(arbitrary_types_allowed=True)  # Apply this here
-
     db_name: str
 
     def __init__(self, **data):
