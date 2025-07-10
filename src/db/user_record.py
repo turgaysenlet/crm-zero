@@ -1,16 +1,13 @@
-import json
 import logging
 import time
 import uuid
 from sqlite3 import Cursor, Connection
-from typing import Dict, Any, List
+from typing import Dict, Any
 
 from pydantic import BaseModel
 
-from src.core.access.profile import Profile
 from src.core.access.user import User
 from src.core.reference.object_reference_list import ObjectReferenceList
-from src.db.profile_record import ProfileRecord
 
 logging.basicConfig()
 logger = logging.getLogger("UserRecord")

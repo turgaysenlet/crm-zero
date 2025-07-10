@@ -1,6 +1,5 @@
 import logging
 import uuid
-from typing import List
 
 from src.core.access.access_type import AccessType
 from src.core.base.data_object import DataObject

@@ -99,8 +99,7 @@ if trigger.workflow_trigger_object_type_name == "Case":
     object_number = sender.case_number
     summary = f" - {sender.summary}"
 elif trigger.workflow_trigger_object_type_name == "Account":
-    object_number = sender.account_number
-    
+    object_number = sender.account_number    
     
 email_sender.send_mail(
     receiver_email="turgaysenlet@gmail.com",
