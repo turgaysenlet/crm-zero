@@ -49,34 +49,34 @@ class Server:
         self.router = APIRouter()
         logger.info("Adding API routes")
         # LIST
-        self.router.add_api_route("/cases", self.get_cases_api_record, response_model=List[CaseApiRecord])
-        self.router.add_api_route("/accounts", self.get_accounts_api_record, response_model=List[AccountApiRecord])
-        self.router.add_api_route("/users", self.get_users_api_record, response_model=List[UserApiRecord])
-        self.router.add_api_route("/workflows", self.get_workflows_api_record, response_model=List[WorkflowApiRecord])
-        self.router.add_api_route("/workflow_steps", self.get_workflow_steps_api_record,
+        self.router.add_api_route("/api/cases", self.get_cases_api_record, response_model=List[CaseApiRecord])
+        self.router.add_api_route("/api/accounts", self.get_accounts_api_record, response_model=List[AccountApiRecord])
+        self.router.add_api_route("/api/users", self.get_users_api_record, response_model=List[UserApiRecord])
+        self.router.add_api_route("/api/workflows", self.get_workflows_api_record, response_model=List[WorkflowApiRecord])
+        self.router.add_api_route("/api/workflow_steps", self.get_workflow_steps_api_record,
                                   response_model=List[WorkflowStepApiRecord])
-        self.router.add_api_route("/workflow_triggers", self.get_workflow_trigger_api_record,
+        self.router.add_api_route("/api/workflow_triggers", self.get_workflow_trigger_api_record,
                                   response_model=List[WorkflowTriggerApiRecord])
 
         # LIST with access check
-        self.router.add_api_route("/cases_by_username", self.get_cases_by_username, response_model=List[CaseApiRecord])
+        self.router.add_api_route("/api/cases_by_username", self.get_cases_by_username, response_model=List[CaseApiRecord])
         # GET with id
-        self.router.add_api_route("/case/{case_id}", self.get_case_by_id_and_user, response_model=CaseApiRecord,
+        self.router.add_api_route("/api/case/{case_id}", self.get_case_by_id_and_user, response_model=CaseApiRecord,
                                   methods=["GET"])
-        self.router.add_api_route("/account/{account_id}", self.get_account_by_id_and_user,
+        self.router.add_api_route("/api/account/{account_id}", self.get_account_by_id_and_user,
                                   response_model=AccountApiRecord, methods=["GET"])
-        self.router.add_api_route("/workflow/{workflow_id}", self.get_workflow_by_id,
+        self.router.add_api_route("/api/workflow/{workflow_id}", self.get_workflow_by_id,
                                   response_model=WorkflowApiRecord, methods=["GET"])
-        self.router.add_api_route("/workflow_step/{workflow_step_id}", self.get_workflow_step_by_id,
+        self.router.add_api_route("/api/workflow_step/{workflow_step_id}", self.get_workflow_step_by_id,
                                   response_model=WorkflowStepApiRecord, methods=["GET"])
-        self.router.add_api_route("/workflow_step/{workflow_step_id}", self.update_workflow_step_by_id,
+        self.router.add_api_route("/api/workflow_step/{workflow_step_id}", self.update_workflow_step_by_id,
                                   response_model=WorkflowStepApiRecord, methods=["POST"])
 
-        self.router.add_api_route("/run/workflow/{workflow_id}", self.run_workflow_by_id,
+        self.router.add_api_route("/api/run/workflow/{workflow_id}", self.run_workflow_by_id,
                                   response_model=WorkflowApiRecord, methods=["GET"])
 
-        self.router.add_api_route("/case", self.create_case, response_model=CaseApiRecord, methods=["POST"])
-        self.router.add_api_route("/account", self.create_account, response_model=AccountApiRecord, methods=["POST"])
+        self.router.add_api_route("/api/case", self.create_case, response_model=CaseApiRecord, methods=["POST"])
+        self.router.add_api_route("/api/account", self.create_account, response_model=AccountApiRecord, methods=["POST"])
 
         logger.info(f"Done initializing server with {len(self.router.routes)} API routes defined")
 

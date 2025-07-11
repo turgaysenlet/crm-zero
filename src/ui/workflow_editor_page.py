@@ -15,7 +15,7 @@ def workflow_editor_page():
             ui.label("Workflow Steps").classes("text-xl font-bold")
 
             async def load_workflow_steps():
-                response = await ui.run_javascript('fetch("/workflow_steps").then(r => r.json())')
+                response = await ui.run_javascript('fetch("/api/workflow_steps").then(r => r.json())')
                 for wf in response:
                     ui.button(wf["workflow_step_name"],
                               on_click=lambda _, id=wf["id"], current_id=id: load_workflow_detail(id)).classes("w-full")
@@ -31,7 +31,7 @@ def workflow_editor_page():
                 code = editor.value
                 workflow_step_id = str(current_id[0])
                 response = await ui.run_javascript(f'''
-                fetch("/workflow_step/{workflow_step_id}", {{
+                fetch("/api/workflow_step/{workflow_step_id}", {{
                     method: "POST",
                     headers: {{"Content-Type": "application/json"}},
                     body: JSON.stringify({{"id": "{workflow_step_id}", "workflow_step_name": "", "workflow_step_code": {code!r}
@@ -48,7 +48,7 @@ def workflow_editor_page():
 
             async def load_workflow_detail(workflow_step_id: str):
                 current_id[0] = workflow_step_id
-                response = await ui.run_javascript(f'fetch("/workflow_step/{workflow_step_id}").then(r => r.json())')
+                response = await ui.run_javascript(f'fetch("/api/workflow_step/{workflow_step_id}").then(r => r.json())')
                 title.set_text(response["workflow_step_name"])
                 description.set_text(response["workflow_step_name"])
                 editor.set_value(response["workflow_step_code"])
