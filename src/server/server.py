@@ -5,11 +5,13 @@ from typing import List, Optional
 import uvicorn
 from fastapi import FastAPI, APIRouter, HTTPException, Query
 from fastapi import Path as FastAPIPath
+from nicegui import ui
 
 from src.api.account_api_record import AccountApiRecord
 from src.api.case_api_record import CaseApiRecord
-from src.api.requrests.account_create_request_api_record import AccountCreateRequestApiRecord
-from src.api.requrests.case_create_request_api_record import CaseCreateRequestApiRecord
+from src.api.requests.account_create_request_api_record import AccountCreateRequestApiRecord
+from src.api.requests.case_create_request_api_record import CaseCreateRequestApiRecord
+from src.api.requests.workflow_step_update_request_api_record import WorkflowStepUpdateRequestApiRecord
 from src.api.user_api_record import UserApiRecord
 from src.api.workflow_api_record import WorkflowApiRecord
 from src.api.workflow_step_api_record import WorkflowStepApiRecord
@@ -27,6 +29,7 @@ from src.db.user_record import UserRecord
 from src.db.workflow_record import WorkflowRecord
 from src.db.workflow_step_record import WorkflowStepRecord
 from src.db.workflow_trigger_record import WorkflowTriggerRecord
+from src.ui import create_case_page, workflow_editor_page
 
 logging.basicConfig()
 logger = logging.getLogger("Server")
@@ -64,6 +67,10 @@ class Server:
                                   response_model=AccountApiRecord, methods=["GET"])
         self.router.add_api_route("/workflow/{workflow_id}", self.get_workflow_by_id,
                                   response_model=WorkflowApiRecord, methods=["GET"])
+        self.router.add_api_route("/workflow_step/{workflow_step_id}", self.get_workflow_step_by_id,
+                                  response_model=WorkflowStepApiRecord, methods=["GET"])
+        self.router.add_api_route("/workflow_step/{workflow_step_id}", self.update_workflow_step_by_id,
+                                  response_model=WorkflowStepApiRecord, methods=["POST"])
 
         self.router.add_api_route("/run/workflow/{workflow_id}", self.run_workflow_by_id,
                                   response_model=WorkflowApiRecord, methods=["GET"])
@@ -327,6 +334,53 @@ class Server:
         db_conn.close()
         return workflow_api_record
 
+    async def get_workflow_step_by_id(
+            self,
+            workflow_step_id: uuid.UUID = FastAPIPath(..., description="Workflow Step ID (UUID)")
+    ) -> WorkflowStepApiRecord:
+        [db_conn, db_cursor] = self.db.connect()
+
+        workflow_step_record: WorkflowStepRecord = self.db.read_object_by_id(db_conn, db_cursor, WorkflowStepRecord.table_name(),
+                                                                    "WorkflowStep", workflow_step_id, None)
+        if not workflow_step_record:
+            db_conn.close()
+            raise HTTPException(status_code=404, detail=f"No workflow step found by id '{str(workflow_step_id)}'.")
+        workflow_step: WorkflowStep = workflow_step_record.convert_to_object()
+        workflow_step_api_record: WorkflowStepApiRecord = WorkflowStepApiRecord.from_object(workflow_step)
+        if not workflow_step_api_record:
+            db_conn.close()
+            raise HTTPException(status_code=404, detail=f"No workflow step found by id '{str(workflow_step_id)}'.")
+        db_conn.close()
+        return workflow_step_api_record
+
+    async def update_workflow_step_by_id(
+            self,
+            workflow_step_id: uuid.UUID = FastAPIPath(..., description="Workflow Step ID (UUID)"),
+            update_request: WorkflowStepUpdateRequestApiRecord = None
+    ) -> WorkflowStepApiRecord:
+        [db_conn, db_cursor] = self.db.connect()
+
+        workflow_step_record: WorkflowStepRecord = self.db.read_object_by_id(db_conn, db_cursor,
+                                                                             WorkflowStepRecord.table_name(),
+                                                                             "WorkflowStep", workflow_step_id, None)
+        if not workflow_step_record:
+            db_conn.close()
+            raise HTTPException(status_code=404, detail=f"No workflow step found by id '{str(workflow_step_id)}'.")
+        workflow_step: WorkflowStep = workflow_step_record.convert_to_object()
+        # Apply update request
+        update_request.update_workflow_step(workflow_step)
+        # Write to database
+        WorkflowStepRecord.from_object(workflow_step).insert_or_replace_to_db(db_conn, db_cursor)
+        # TODO: Reread record from database
+        workflow_step_api_record: WorkflowStepApiRecord = WorkflowStepApiRecord.from_object(workflow_step)
+        if not workflow_step_api_record:
+            db_conn.close()
+            raise HTTPException(status_code=404, detail=f"No workflow step found by id '{str(workflow_step_id)}'.")
+        # Reload all workflows, triggers and workflow steps to make them live
+        self.db.init_workflows_and_triggers(db_conn, db_cursor)
+        db_conn.close()
+        return workflow_step_api_record
+
     async def run_workflow_by_id(
             self,
             workflow_id: uuid.UUID = FastAPIPath(..., description="Workflow ID (UUID)")
@@ -363,6 +417,7 @@ class Server:
 # Mount the router
 server = Server()
 app.include_router(server.router)
+ui.run_with(app, storage_secret="secret")
 
 # To run:
 if __name__ == "__main__":

@@ -15,6 +15,7 @@ from src.core.eventbus.workflow import Workflow
 from src.core.eventbus.workflow_step import WorkflowStep
 from src.core.eventbus.workflow_trigger import WorkflowTrigger
 from src.db.account_record import AccountRecord
+from src.db.case_comment_record import CaseCommentRecord
 from src.db.case_record import CaseRecord
 from src.db.profile_record import ProfileRecord
 from src.db.user_record import UserRecord
@@ -177,6 +178,32 @@ class Database(BaseModel):
         except sqlite3.Error as e:
             logger.error(f"Error listing table '{AccountRecord.table_name()}': {e}")
             return max_account_number
+
+    def read_max_case_comment_number_for_case(self, conn: Connection, cursor: Cursor, case_id: str) -> int:
+        max_case_comment_number: int = 0
+        if not conn:
+            logger.error("Database connection not established. Cannot list table.")
+            return max_case_comment_number
+        try:
+            query = CaseCommentRecord.get_last_case_comment_number_for_case_query(case_id)
+            logger.debug(f'Running SQL query "{query}"')
+            cursor.execute(query)
+            rows = cursor.fetchall()
+            logger.debug(f'Received rows: "{rows}"')
+            if len(rows) > 0:
+                row = dict(rows[0])
+                max_case_comment_number_value = row.get("max_case_comment_number", max_case_comment_number)
+                if max_case_comment_number_value is None:
+                    max_case_comment_number_value = max_case_comment_number
+                logger.info(f"Last case comment number in database is {max_case_comment_number_value} for case {case_id}.")
+                return max_case_comment_number_value
+            return max_case_comment_number
+        except sqlite3.OperationalError as e:
+            logger.error(f"Error: Table '{CaseCommentRecord.table_name()}' does not exist or SQL error. {e}")
+            return max_case_comment_number
+        except sqlite3.Error as e:
+            logger.error(f"Error listing table '{CaseCommentRecord.table_name()}': {e}")
+            return max_case_comment_number
 
     def read_objects(self, conn: Connection, cursor: Cursor, table_name: str, object_type_str: str,
                      user: Optional[User]) -> [DataObject]:
