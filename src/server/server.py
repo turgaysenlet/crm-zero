@@ -61,18 +61,18 @@ class Server:
         # LIST with access check
         self.router.add_api_route("/api/cases_by_username", self.get_cases_by_username, response_model=List[CaseApiRecord])
         # GET with id
-        self.router.add_api_route("/api/case/{case_id}", self.get_case_by_id_and_user, response_model=CaseApiRecord,
+        self.router.add_api_route("/api/cases/{case_id}", self.get_case_by_id_and_user, response_model=CaseApiRecord,
                                   methods=["GET"])
-        self.router.add_api_route("/api/account/{account_id}", self.get_account_by_id_and_user,
+        self.router.add_api_route("/api/accounts/{account_id}", self.get_account_by_id_and_user,
                                   response_model=AccountApiRecord, methods=["GET"])
-        self.router.add_api_route("/api/workflow/{workflow_id}", self.get_workflow_by_id,
+        self.router.add_api_route("/api/workflows/{workflow_id}", self.get_workflow_by_id,
                                   response_model=WorkflowApiRecord, methods=["GET"])
-        self.router.add_api_route("/api/workflow_step/{workflow_step_id}", self.get_workflow_step_by_id,
+        self.router.add_api_route("/api/workflow_steps/{workflow_step_id}", self.get_workflow_step_by_id,
                                   response_model=WorkflowStepApiRecord, methods=["GET"])
-        self.router.add_api_route("/api/workflow_step/{workflow_step_id}", self.update_workflow_step_by_id,
+        self.router.add_api_route("/api/workflow_steps/{workflow_step_id}", self.update_workflow_step_by_id,
                                   response_model=WorkflowStepApiRecord, methods=["POST"])
 
-        self.router.add_api_route("/api/run/workflow/{workflow_id}", self.run_workflow_by_id,
+        self.router.add_api_route("/api/run/workflows/{workflow_id}", self.run_workflow_by_id,
                                   response_model=WorkflowApiRecord, methods=["GET"])
 
         self.router.add_api_route("/api/case", self.create_case, response_model=CaseApiRecord, methods=["POST"])
