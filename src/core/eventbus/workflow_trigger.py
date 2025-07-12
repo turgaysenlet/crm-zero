@@ -47,4 +47,5 @@ class WorkflowTrigger(DataObject):
                     workflow_trigger.workflow_trigger_object_type_name == workflow_trigger_object_type_name and \
                     workflow_trigger.workflow_trigger_event_type == workflow_trigger_event_type:
                 for workflow in workflow_trigger.workflows:
+                    logger.debug(f"Running workflow: {workflow.workflow_name} for workflow_trigger_object_type_name - {sender_object.id}")
                     workflow.run_workflow(sender_object, workflow_trigger)

@@ -47,7 +47,7 @@ def create_case_comment_page():
 
         # RIGHT PANEL - Workflow step details
         with ui.column().classes('grow w-2/4 p-4 bg-gray-100 h-full'):
-            title = ui.label("Case details").classes("text-2xl font-bold mb-4")
+            title = ui.label("Case comment details").classes("text-2xl font-bold mb-4")
 
             with ui.row().classes("items-center gap-2 mb-4"):
                 ui.label("User").classes("w-24")
@@ -57,11 +57,11 @@ def create_case_comment_page():
                 case_ = ui.label("case").classes('bg-gray-200 w-full')
 
             with ui.row().classes("items-center gap-2 mb-4"):
-                ui.label("Summary").classes("w-24")
+                ui.label("Comment Summary").classes("w-24")
                 summary = ui.input().classes('bg-gray-200 w-full')
 
             with ui.row().classes("items-start gap-2"):
-                ui.label("Description").classes("w-24 pt-1")
+                ui.label("Comment Description").classes("w-24 pt-1")
                 description = ui.textarea().classes('bg-gray-200 w-full h-32')
 
             ui.button("Create Comment", on_click=create_case_comment)

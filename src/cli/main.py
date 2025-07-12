@@ -114,7 +114,7 @@ elif trigger.workflow_trigger_object_type_name == "Account":
 email_sender.send_mail(
     receiver_email="turgaysenlet@gmail.com",
     subject=f"{trigger.workflow_trigger_event_type} {trigger.workflow_trigger_object_type_name} - {object_number} {summary}",
-    body=f"{trigger.workflow_trigger_object_type_name} {trigger.workflow_trigger_object_type_name} - {object_number} - id: {sender.id}\r\n\r\n{sender}\r\n\r\nCRM-Zero")
+    body=f"{trigger.workflow_trigger_object_type_name} {trigger.workflow_trigger_object_type_name} - {object_number} - id: {sender.id}\\r\\n\\r\\n{sender}\\r\\n\\r\\nCRM-Zero")
 ''')
 
     workflow5_step: WorkflowStep = WorkflowStep(
@@ -133,13 +133,24 @@ if trigger.workflow_trigger_object_type_name == "CaseComment":
 email_sender.send_mail(
     receiver_email="turgaysenlet@gmail.com",
     subject=f"{trigger.workflow_trigger_event_type} {trigger.workflow_trigger_object_type_name} - {object_number} {summary}",
-    body=f"{trigger.workflow_trigger_object_type_name} {trigger.workflow_trigger_object_type_name} - {object_number} - id: {sender.id}\r\n\r\n{sender}\r\n\r\nCRM-Zero")
+    body=f"{trigger.workflow_trigger_object_type_name} {trigger.workflow_trigger_object_type_name} - {object_number} - id: {sender.id}\\r\\n\\r\\n{sender}\\r\\n\\r\\nCRM-Zero")
 ''')
+
+    workflow6_step: WorkflowStep = WorkflowStep(
+        owner_id=ObjectReference.from_object(support_agent_user1),
+        workflow_step_name="WorkflowStep6-AddCommentOnCaseCreation",
+        workflow_step_code='''
+from src.util.comment_creator import CommentCreator
+
+comment_creator: CommentCreator = CommentCreator()
+comment_creator.create_comment(sender_case=sender, comment_summary=f"Case created - {sender.case_number}",
+                               comment_description=f"Case created - {sender.case_number}")
+    ''')
 
     workflow1: Workflow = Workflow(owner_id=ObjectReference.from_object(support_agent_user1),
                                    workflow_name="Workflow1",
                                    workflow_step_ids=ObjectReferenceList.from_list(
-                                       [workflow1_step, workflow2_step, workflow3_step, workflow4_step]))
+                                       [workflow1_step, workflow2_step, workflow3_step, workflow4_step, workflow6_step]))
 
     workflow2: Workflow = Workflow(owner_id=ObjectReference.from_object(support_agent_user1),
                                    workflow_name="Workflow2",
@@ -196,6 +207,7 @@ email_sender.send_mail(
     WorkflowStepRecord.from_object(workflow3_step).insert_or_replace_to_db(db_conn, db_cursor)
     WorkflowStepRecord.from_object(workflow4_step).insert_or_replace_to_db(db_conn, db_cursor)
     WorkflowStepRecord.from_object(workflow5_step).insert_or_replace_to_db(db_conn, db_cursor)
+    WorkflowStepRecord.from_object(workflow6_step).insert_or_replace_to_db(db_conn, db_cursor)
 
     WorkflowRecord.from_object(workflow1).insert_or_replace_to_db(db_conn, db_cursor)
     WorkflowRecord.from_object(workflow2).insert_or_replace_to_db(db_conn, db_cursor)
