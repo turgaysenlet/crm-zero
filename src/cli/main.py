@@ -147,10 +147,26 @@ comment_creator.create_comment(sender_case=sender, comment_summary=f"Case create
                                comment_description=f"Case created - {sender.case_number}")
     ''')
 
+    workflow7_step: WorkflowStep = WorkflowStep(
+        owner_id=ObjectReference.from_object(support_agent_user1),
+        workflow_step_name="WorkflowStep7-AddAssistantAckCommentOnCaseCreation",
+        workflow_step_code='''
+from src.util.comment_creator import CommentCreator
+from src.util.assistant import Assistant
+
+assistant: Assistant = Assistant()
+comment_creator: CommentCreator = CommentCreator()
+
+ack_text: str = assistant.give_initial_acknowledgement(sender.summary)
+
+comment_creator.create_comment(sender_case=sender, comment_summary=f"Case received - {sender.case_number}",
+                               comment_description=f"Case received - {sender.case_number} - {ack_text}")
+        ''')
+
     workflow1: Workflow = Workflow(owner_id=ObjectReference.from_object(support_agent_user1),
                                    workflow_name="Workflow1",
                                    workflow_step_ids=ObjectReferenceList.from_list(
-                                       [workflow1_step, workflow2_step, workflow3_step, workflow4_step, workflow6_step]))
+                                       [workflow1_step, workflow2_step, workflow3_step, workflow4_step, workflow6_step, workflow7_step]))
 
     workflow2: Workflow = Workflow(owner_id=ObjectReference.from_object(support_agent_user1),
                                    workflow_name="Workflow2",
@@ -208,6 +224,7 @@ comment_creator.create_comment(sender_case=sender, comment_summary=f"Case create
     WorkflowStepRecord.from_object(workflow4_step).insert_or_replace_to_db(db_conn, db_cursor)
     WorkflowStepRecord.from_object(workflow5_step).insert_or_replace_to_db(db_conn, db_cursor)
     WorkflowStepRecord.from_object(workflow6_step).insert_or_replace_to_db(db_conn, db_cursor)
+    WorkflowStepRecord.from_object(workflow7_step).insert_or_replace_to_db(db_conn, db_cursor)
 
     WorkflowRecord.from_object(workflow1).insert_or_replace_to_db(db_conn, db_cursor)
     WorkflowRecord.from_object(workflow2).insert_or_replace_to_db(db_conn, db_cursor)
