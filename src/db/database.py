@@ -61,6 +61,7 @@ class Database(BaseModel):
         # Create tables
         self.create_table(conn, cursor, AccountRecord.table_definition())
         self.create_table(conn, cursor, CaseRecord.table_definition())
+        self.create_table(conn, cursor, CaseCommentRecord.table_definition())
         self.create_table(conn, cursor, UserRecord.table_definition())
         self.create_table(conn, cursor, ProfileRecord.table_definition())
         self.create_table(conn, cursor, WorkflowRecord.table_definition())
@@ -179,32 +180,6 @@ class Database(BaseModel):
             logger.error(f"Error listing table '{AccountRecord.table_name()}': {e}")
             return max_account_number
 
-    def read_max_case_comment_number_for_case(self, conn: Connection, cursor: Cursor, case_id: str) -> int:
-        max_case_comment_number: int = 0
-        if not conn:
-            logger.error("Database connection not established. Cannot list table.")
-            return max_case_comment_number
-        try:
-            query = CaseCommentRecord.get_last_case_comment_number_for_case_query(case_id)
-            logger.debug(f'Running SQL query "{query}"')
-            cursor.execute(query)
-            rows = cursor.fetchall()
-            logger.debug(f'Received rows: "{rows}"')
-            if len(rows) > 0:
-                row = dict(rows[0])
-                max_case_comment_number_value = row.get("max_case_comment_number", max_case_comment_number)
-                if max_case_comment_number_value is None:
-                    max_case_comment_number_value = max_case_comment_number
-                logger.info(f"Last case comment number in database is {max_case_comment_number_value} for case {case_id}.")
-                return max_case_comment_number_value
-            return max_case_comment_number
-        except sqlite3.OperationalError as e:
-            logger.error(f"Error: Table '{CaseCommentRecord.table_name()}' does not exist or SQL error. {e}")
-            return max_case_comment_number
-        except sqlite3.Error as e:
-            logger.error(f"Error listing table '{CaseCommentRecord.table_name()}': {e}")
-            return max_case_comment_number
-
     def read_objects(self, conn: Connection, cursor: Cursor, table_name: str, object_type_str: str,
                      user: Optional[User]) -> [DataObject]:
         """
@@ -223,6 +198,8 @@ class Database(BaseModel):
             if rows is not None and len(rows) > 0:
                 if object_type_str == "Case":
                     return [CaseRecord.from_db_row(row) for row in rows]
+                elif object_type_str == "CaseComment":
+                    return [CaseCommentRecord.from_db_row(row) for row in rows]
                 elif object_type_str == "Account":
                     return [AccountRecord.from_db_row(row) for row in rows]
                 elif object_type_str == "User":
@@ -237,10 +214,10 @@ class Database(BaseModel):
                     return [WorkflowTriggerRecord.from_db_row(row) for row in rows]
                 else:
                     # Unexpected object type
-                    logger.warning(f'Unexpected object type "{object_type_str}".')
+                    logger.error(f'Unexpected object type "{object_type_str}".')
                 return []
         else:
-            logger.warning(f'User "{user.username}" trying to access object type "{object_type_str}", '
+            logger.error(f'User "{user.username}" trying to access object type "{object_type_str}", '
                            f'but does not have access.')
             return []
 

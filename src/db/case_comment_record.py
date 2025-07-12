@@ -1,4 +1,6 @@
+import json
 import logging
+import sqlite3
 import time
 import uuid
 from sqlite3 import Cursor, Connection
@@ -28,13 +30,13 @@ class CaseCommentRecord(BaseModel):
 
     @classmethod
     def table_name(cls) -> str:
-        return "Cases"
+        return "CaseComments"
 
     @classmethod
     def table_definition(cls) -> str:
         return f'''{CaseCommentRecord.table_name()} (
                 id TEXT PRIMARY KEY,
-                case_comment_number TEXT UNIQUE NOT NULL,
+                case_comment_number TEXT NOT NULL,
                 owner_id TEXT NOT NULL,
                 case_id TEXT NOT NULL,
                 summary TEXT NOT NULL,                
@@ -54,7 +56,7 @@ class CaseCommentRecord(BaseModel):
     @classmethod
     def get_last_case_comment_number_for_case_query(cls, case_id: str) -> str:
         query = f"SELECT MAX(CAST(case_comment_number AS INTEGER)) AS max_case_comment_number FROM " \
-                f"{CaseCommentRecord.table_name()} WHERE case_id={case_id}"
+                f"{CaseCommentRecord.table_name()} WHERE case_id='{case_id}'"
         return query
 
     @classmethod
@@ -96,6 +98,10 @@ class CaseCommentRecord(BaseModel):
         logger.debug(f"Creating case comment record: {self}")
 
     def insert_to_db(self, conn: Connection, cursor: Cursor) -> None:
+        # case_id = json.loads(self.case_id)['object_id']
+        max_case_comment_number: int = self.read_max_case_comment_number_for_case(conn, cursor, self.case_id)
+        self.case_comment_number = CaseComment.case_comment_number_from_number(max_case_comment_number + 1)
+
         now = time.time()
         self.commit_at = now
         query = f"INSERT INTO {CaseCommentRecord.table_name()} ({CaseCommentRecord.table_fields()}) " \
@@ -103,25 +109,37 @@ class CaseCommentRecord(BaseModel):
         logger.debug(f'Running SQL query "{query}"')
         cursor.execute(
             query,
-            (self.id, self.case_comment_number, self.owner_id, self.case_id, self.summary, self.description, self.created_at,
-             self.updated_at, self.commit_at, self.object_type_name)
+            (self.id, self.case_comment_number, self.owner_id, self.case_id, self.summary, self.description,
+             self.created_at, self.updated_at, self.commit_at, self.object_type_name)
         )
-        CaseComment.last_case_comment_number += 1
         conn.commit()
 
-    def insert_or_replace_to_db(self, conn: Connection, cursor: Cursor) -> None:
-        now = time.time()
-        self.commit_at = now
-        query = f"INSERT OR REPLACE INTO {CaseCommentRecord.table_name()} ({CaseCommentRecord.table_fields()}) " \
-                f"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-        logger.debug(f'Running SQL query "{query}"')
-        cursor.execute(
-            query,
-            (self.id, self.case_comment_number, self.owner_id, self.case_id, self.summary, self.description, self.created_at,
-             self.updated_at, self.commit_at, self.object_type_name)
-        )
-        CaseComment.last_case_comment_number += 1
-        conn.commit()
+    def read_max_case_comment_number_for_case(self, conn: Connection, cursor: Cursor, case_id: str) -> int:
+        max_case_comment_number: int = 0
+        if not conn:
+            logger.error("Database connection not established. Cannot list table.")
+            return max_case_comment_number
+        try:
+            query = CaseCommentRecord.get_last_case_comment_number_for_case_query(case_id)
+            logger.debug(f'Running SQL query "{query}"')
+            cursor.execute(query)
+            rows = cursor.fetchall()
+            logger.debug(f'Received rows: "{rows}"')
+            if len(rows) > 0:
+                row = dict(rows[0])
+                max_case_comment_number_value = row.get("max_case_comment_number", max_case_comment_number)
+                if max_case_comment_number_value is None:
+                    max_case_comment_number_value = max_case_comment_number
+                logger.info(
+                    f"Last case comment number in database is {max_case_comment_number_value} for case {case_id}.")
+                return max_case_comment_number_value
+            return max_case_comment_number
+        except sqlite3.OperationalError as e:
+            logger.error(f"Error: Table '{CaseCommentRecord.table_name()}' does not exist or SQL error. {e}")
+            return max_case_comment_number
+        except sqlite3.Error as e:
+            logger.error(f"Error listing table '{CaseCommentRecord.table_name()}': {e}")
+            return max_case_comment_number
 
     def read_from_db_row(self, row: Dict[str, Any]) -> None:
         self.id = str(row["id"])

@@ -10,9 +10,11 @@ from src.core.eventbus.workflow_step import WorkflowStep
 from src.core.eventbus.workflow_trigger import WorkflowTrigger
 from src.core.objects.account import Account
 from src.core.objects.case import Case
+from src.core.objects.case_comment import CaseComment
 from src.core.reference.object_reference import ObjectReference
 from src.core.reference.object_reference_list import ObjectReferenceList
 from src.db.account_record import AccountRecord
+from src.db.case_comment_record import CaseCommentRecord
 
 from src.db.database import Database
 from src.db.case_record import CaseRecord
@@ -108,12 +110,11 @@ if trigger.workflow_trigger_object_type_name == "Case":
     summary = f" - {sender.summary}"
 elif trigger.workflow_trigger_object_type_name == "Account":
     object_number = sender.account_number    
-else:
-    return    
+
 email_sender.send_mail(
     receiver_email="turgaysenlet@gmail.com",
     subject=f"{trigger.workflow_trigger_event_type} {trigger.workflow_trigger_object_type_name} - {object_number} {summary}",
-    body=f"{trigger.workflow_trigger_object_type_name} {trigger.workflow_trigger_object_type_name} - {object_number} - id: {sender.id}\\r\\n\\r\\n{sender}\\r\\n\\r\\nCRM-Zero")
+    body=f"{trigger.workflow_trigger_object_type_name} {trigger.workflow_trigger_object_type_name} - {object_number} - id: {sender.id}\r\n\r\n{sender}\r\n\r\nCRM-Zero")
 ''')
 
     workflow5_step: WorkflowStep = WorkflowStep(
@@ -125,15 +126,14 @@ email_sender: EmailSender = EmailSender()
 
 object_number: str = ""
 summary: str = ""
-if trigger.workflow_trigger_object_type_name == "Comment":
-    object_number = sender.comment_number
+if trigger.workflow_trigger_object_type_name == "CaseComment":
+    object_number = f"{sender.case_id.object_id} - {sender.case_comment_number}"
     summary = f" - {sender.summary}"
-else:
-    return
+
 email_sender.send_mail(
     receiver_email="turgaysenlet@gmail.com",
     subject=f"{trigger.workflow_trigger_event_type} {trigger.workflow_trigger_object_type_name} - {object_number} {summary}",
-    body=f"{trigger.workflow_trigger_object_type_name} {trigger.workflow_trigger_object_type_name} - {object_number} - id: {sender.id}\\r\\n\\r\\n{sender}\\r\\n\\r\\nCRM-Zero")
+    body=f"{trigger.workflow_trigger_object_type_name} {trigger.workflow_trigger_object_type_name} - {object_number} - id: {sender.id}\r\n\r\n{sender}\r\n\r\nCRM-Zero")
 ''')
 
     workflow1: Workflow = Workflow(owner_id=ObjectReference.from_object(support_agent_user1),
@@ -170,6 +170,26 @@ email_sender.send_mail(
                        summary="Case 2 - Sales",
                        description="Case 2 - Description")
 
+    case1_comment_1: CaseComment = CaseComment(owner_id=ObjectReference.from_object(support_agent_user1),
+                                               case_id=ObjectReference.from_object(case1),
+                                               summary="Comment1",
+                                               description="Comment1 details")
+
+    case1_comment_2: CaseComment = CaseComment(owner_id=ObjectReference.from_object(support_agent_user1),
+                                               case_id=ObjectReference.from_object(case1),
+                                               summary="Comment2",
+                                               description="Comment2 details")
+
+    # Create and write database records for profiles, but overwrite if exists
+    ProfileRecord.from_object(administrator_profile).insert_or_replace_to_db(db_conn, db_cursor)
+    ProfileRecord.from_object(support_agent_profile).insert_or_replace_to_db(db_conn, db_cursor)
+    ProfileRecord.from_object(sales_agent_profile).insert_or_replace_to_db(db_conn, db_cursor)
+
+    # Create and write database records for users, but overwrite if exists
+    UserRecord.from_object(administrator1).insert_or_replace_to_db(db_conn, db_cursor)
+    UserRecord.from_object(support_agent_user1).insert_or_replace_to_db(db_conn, db_cursor)
+    UserRecord.from_object(sales_agent_user1).insert_or_replace_to_db(db_conn, db_cursor)
+
     # Create and write database records for accounts
     WorkflowStepRecord.from_object(workflow1_step).insert_or_replace_to_db(db_conn, db_cursor)
     WorkflowStepRecord.from_object(workflow2_step).insert_or_replace_to_db(db_conn, db_cursor)
@@ -184,22 +204,16 @@ email_sender.send_mail(
     WorkflowTriggerRecord.from_object(workflow_trigger2).insert_or_replace_to_db(db_conn, db_cursor)
     WorkflowTriggerRecord.from_object(workflow_trigger3).insert_or_replace_to_db(db_conn, db_cursor)
 
-    AccountRecord.from_object(account1).insert_or_replace_to_db(db_conn, db_cursor)
-    AccountRecord.from_object(account2).insert_or_replace_to_db(db_conn, db_cursor)
+    AccountRecord.from_object(account1).insert_to_db(db_conn, db_cursor)
+    AccountRecord.from_object(account2).insert_to_db(db_conn, db_cursor)
 
     # Create and write database records for cases
-    CaseRecord.from_object(case1).insert_or_replace_to_db(db_conn, db_cursor)
-    CaseRecord.from_object(case2).insert_or_replace_to_db(db_conn, db_cursor)
+    CaseRecord.from_object(case1).insert_to_db(db_conn, db_cursor)
+    CaseRecord.from_object(case2).insert_to_db(db_conn, db_cursor)
 
-    # Create and write database records for profiles, but overwrite if exists
-    ProfileRecord.from_object(administrator_profile).insert_or_replace_to_db(db_conn, db_cursor)
-    ProfileRecord.from_object(support_agent_profile).insert_or_replace_to_db(db_conn, db_cursor)
-    ProfileRecord.from_object(sales_agent_profile).insert_or_replace_to_db(db_conn, db_cursor)
-
-    # Create and write database records for users, but overwrite if exists
-    UserRecord.from_object(administrator1).insert_or_replace_to_db(db_conn, db_cursor)
-    UserRecord.from_object(support_agent_user1).insert_or_replace_to_db(db_conn, db_cursor)
-    UserRecord.from_object(sales_agent_user1).insert_or_replace_to_db(db_conn, db_cursor)
+    # Create and write database records for case comments
+    CaseCommentRecord.from_object(case1_comment_1).insert_to_db(db_conn, db_cursor)
+    CaseCommentRecord.from_object(case1_comment_2).insert_to_db(db_conn, db_cursor)
 
     # Read cases from database
     rows = db.list_table_rows(db_conn, db_cursor, CaseRecord.table_name())

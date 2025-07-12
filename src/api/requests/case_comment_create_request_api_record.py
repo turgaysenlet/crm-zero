@@ -7,7 +7,7 @@ from src.core.objects.case_comment import CaseComment
 from src.core.reference.object_reference import ObjectReference
 
 
-class CaseCreateRequestApiRecord(BaseModel):
+class CaseCommentCreateRequestApiRecord(BaseModel):
     owner_id: str
     case_id: str
     summary: str

@@ -9,7 +9,9 @@ from nicegui import ui
 
 from src.api.account_api_record import AccountApiRecord
 from src.api.case_api_record import CaseApiRecord
+from src.api.case_comment_api_record import CaseCommentApiRecord
 from src.api.requests.account_create_request_api_record import AccountCreateRequestApiRecord
+from src.api.requests.case_comment_create_request_api_record import CaseCommentCreateRequestApiRecord
 from src.api.requests.case_create_request_api_record import CaseCreateRequestApiRecord
 from src.api.requests.workflow_step_update_request_api_record import WorkflowStepUpdateRequestApiRecord
 from src.api.user_api_record import UserApiRecord
@@ -22,14 +24,16 @@ from src.core.eventbus.workflow_step import WorkflowStep
 from src.core.eventbus.workflow_trigger import WorkflowTrigger
 from src.core.objects.account import Account
 from src.core.objects.case import Case
+from src.core.objects.case_comment import CaseComment
 from src.db.account_record import AccountRecord
+from src.db.case_comment_record import CaseCommentRecord
 from src.db.case_record import CaseRecord
 from src.db.database import Database
 from src.db.user_record import UserRecord
 from src.db.workflow_record import WorkflowRecord
 from src.db.workflow_step_record import WorkflowStepRecord
 from src.db.workflow_trigger_record import WorkflowTriggerRecord
-from src.ui import create_case_page, workflow_editor_page
+from src.ui import create_case_page, create_case_comment_page, workflow_editor_page
 
 logging.basicConfig()
 logger = logging.getLogger("Server")
@@ -50,19 +54,25 @@ class Server:
         logger.info("Adding API routes")
         # LIST
         self.router.add_api_route("/api/cases", self.get_cases_api_record, response_model=List[CaseApiRecord])
+        self.router.add_api_route("/api/case_comments", self.get_case_comments_api_record,
+                                  response_model=List[CaseCommentApiRecord])
         self.router.add_api_route("/api/accounts", self.get_accounts_api_record, response_model=List[AccountApiRecord])
         self.router.add_api_route("/api/users", self.get_users_api_record, response_model=List[UserApiRecord])
-        self.router.add_api_route("/api/workflows", self.get_workflows_api_record, response_model=List[WorkflowApiRecord])
+        self.router.add_api_route("/api/workflows", self.get_workflows_api_record,
+                                  response_model=List[WorkflowApiRecord])
         self.router.add_api_route("/api/workflow_steps", self.get_workflow_steps_api_record,
                                   response_model=List[WorkflowStepApiRecord])
         self.router.add_api_route("/api/workflow_triggers", self.get_workflow_trigger_api_record,
                                   response_model=List[WorkflowTriggerApiRecord])
 
         # LIST with access check
-        self.router.add_api_route("/api/cases_by_username", self.get_cases_by_username, response_model=List[CaseApiRecord])
+        self.router.add_api_route("/api/cases_by_username", self.get_cases_by_username,
+                                  response_model=List[CaseApiRecord])
         # GET with id
         self.router.add_api_route("/api/cases/{case_id}", self.get_case_by_id_and_user, response_model=CaseApiRecord,
                                   methods=["GET"])
+        self.router.add_api_route("/api/case_comments/{case_comment_id}", self.get_case_comment_by_id_and_user,
+                                  response_model=CaseCommentApiRecord, methods=["GET"])
         self.router.add_api_route("/api/accounts/{account_id}", self.get_account_by_id_and_user,
                                   response_model=AccountApiRecord, methods=["GET"])
         self.router.add_api_route("/api/workflows/{workflow_id}", self.get_workflow_by_id,
@@ -76,7 +86,10 @@ class Server:
                                   response_model=WorkflowApiRecord, methods=["GET"])
 
         self.router.add_api_route("/api/case", self.create_case, response_model=CaseApiRecord, methods=["POST"])
-        self.router.add_api_route("/api/account", self.create_account, response_model=AccountApiRecord, methods=["POST"])
+        self.router.add_api_route("/api/case_comment", self.create_case_comment, response_model=CaseCommentApiRecord,
+                                  methods=["POST"])
+        self.router.add_api_route("/api/account", self.create_account, response_model=AccountApiRecord,
+                                  methods=["POST"])
 
         logger.info(f"Done initializing server with {len(self.router.routes)} API routes defined")
 
@@ -116,19 +129,54 @@ class Server:
             db_conn.close()
             return case_api_records
 
+    async def get_case_comments_api_record(self) -> List[CaseCommentApiRecord]:
+        [db_conn, db_cursor] = self.db.connect()
+        username = "admin"
+        user: Optional[User] = await self.get_user(username)
+        if user is None:
+            db_conn.close()
+            raise HTTPException(status_code=404, detail=f"User '{username}' not found.")
+        else:
+            case_comment_records: List[CaseCommentRecord] = self.db.read_objects(
+                db_conn, db_cursor, CaseCommentRecord.table_name(), "CaseComment", user)
+            case_comments: List[CaseComment] = \
+                [case_comment_record.convert_to_object() for case_comment_record in case_comment_records]
+            case_comment_api_records: List[CaseCommentApiRecord] = \
+                [CaseCommentApiRecord.from_object(case_comment) for case_comment in case_comments]
+            if not case_comment_api_records:
+                db_conn.close()
+                raise HTTPException(status_code=404, detail=f"No case comments found.")
+            db_conn.close()
+            return case_comment_api_records
+
     async def create_case(self, create_case_request: CaseCreateRequestApiRecord) -> CaseApiRecord:
         [db_conn, db_cursor] = self.db.connect()
         # TODO: Validate existence of owner_id and account_id in the database/live
         # TODO: Validate user access rules for create case
         # Create live case object
         case1: Case = create_case_request.create_case()
-        # Commit to databasse
+        # Commit to database
         case_record: CaseRecord = CaseRecord.from_object(case1)
         case_record.insert_to_db(db_conn, db_cursor)
         # Get the up-to-date database version of the object into memory object
         case1 = case_record.convert_to_object()
         case_api_record: CaseApiRecord = CaseApiRecord.from_object(case1)
         return case_api_record
+
+    async def create_case_comment(self, create_case_comment_request: CaseCommentCreateRequestApiRecord) -> \
+            CaseCommentApiRecord:
+        [db_conn, db_cursor] = self.db.connect()
+        # TODO: Validate existence of owner_id and account_id in the database/live
+        # TODO: Validate user access rules for create case comment
+        # Create live case comment object
+        comment1: CaseComment = create_case_comment_request.create_case_comment()
+        # Commit to database
+        case_comment_record: CaseCommentRecord = CaseCommentRecord.from_object(comment1)
+        case_comment_record.insert_to_db(db_conn, db_cursor)
+        # Get the up-to-date database version of the object into memory object
+        comment1 = case_comment_record.convert_to_object()
+        case_comment_api_record: CaseCommentApiRecord = CaseCommentApiRecord.from_object(comment1)
+        return case_comment_api_record
 
     async def create_account(self, create_account_request: AccountCreateRequestApiRecord) -> AccountApiRecord:
         [db_conn, db_cursor] = self.db.connect()
@@ -289,6 +337,30 @@ class Server:
             db_conn.close()
             return case_api_record
 
+    async def get_case_comment_by_id_and_user(
+            self,
+            case_comment_id: uuid.UUID = FastAPIPath(..., description="Case comment ID (UUID)"),
+            username: str = Query(..., description="Username to check access or ownership")
+    ) -> CaseCommentApiRecord:
+        user: Optional[User] = await self.get_user(username)
+        [db_conn, db_cursor] = self.db.connect()
+        if user is None:
+            db_conn.close()
+            raise HTTPException(status_code=404, detail=f"User '{username}' not found.")
+        else:
+            case_comment_record: CaseCommentRecord = self.db.read_object_by_id(
+                db_conn, db_cursor, CaseCommentRecord.table_name(), "CaseComment", case_comment_id, user)
+            if not case_comment_record:
+                db_conn.close()
+                raise HTTPException(status_code=404, detail=f"No case comment found for user '{username}'.")
+            case_comment: CaseComment = case_comment_record.convert_to_object()
+            case_comment_api_record: CaseCommentApiRecord = CaseCommentApiRecord.from_object(case_comment)
+            if not case_comment_api_record:
+                db_conn.close()
+                raise HTTPException(status_code=404, detail=f"No case comment found for user '{username}'.")
+            db_conn.close()
+            return case_comment_api_record
+
     async def get_account_by_id_and_user(
             self,
             account_id: uuid.UUID = FastAPIPath(..., description="Account ID (UUID)"),
@@ -340,8 +412,9 @@ class Server:
     ) -> WorkflowStepApiRecord:
         [db_conn, db_cursor] = self.db.connect()
 
-        workflow_step_record: WorkflowStepRecord = self.db.read_object_by_id(db_conn, db_cursor, WorkflowStepRecord.table_name(),
-                                                                    "WorkflowStep", workflow_step_id, None)
+        workflow_step_record: WorkflowStepRecord = self.db.read_object_by_id(db_conn, db_cursor,
+                                                                             WorkflowStepRecord.table_name(),
+                                                                             "WorkflowStep", workflow_step_id, None)
         if not workflow_step_record:
             db_conn.close()
             raise HTTPException(status_code=404, detail=f"No workflow step found by id '{str(workflow_step_id)}'.")

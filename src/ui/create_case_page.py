@@ -65,7 +65,7 @@ def create_case_page():
                 ui.label("Description").classes("w-24 pt-1")
                 description = ui.textarea().classes('bg-gray-200 w-full h-32')
 
-            ui.button("Save code changes", on_click=create_case)
+            ui.button("Create Case", on_click=create_case)
 
             async def load_account_details(id: str, account_number: str):
                 current_account[0] = id
