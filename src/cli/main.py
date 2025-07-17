@@ -133,7 +133,7 @@ if trigger.workflow_trigger_object_type_name == "CaseComment":
 email_sender.send_mail(
     receiver_email="turgaysenlet@gmail.com",
     subject=f"{trigger.workflow_trigger_event_type} {trigger.workflow_trigger_object_type_name} - {object_number} {summary}",
-    body=f"{trigger.workflow_trigger_object_type_name} {trigger.workflow_trigger_object_type_name} - {object_number} - id: {sender.id}\\r\\n\\r\\n{sender}\\r\\n\\r\\nCRM-Zero")
+    body=f"{trigger.workflow_trigger_object_type_name} {trigger.workflow_trigger_object_type_name} - {object_number} - id: {sender.id}\\r\\n\\r\\n{sender.description}\\r\\n\\r\\nCRM-Zero"))
 ''')
 
     workflow6_step: WorkflowStep = WorkflowStep(
