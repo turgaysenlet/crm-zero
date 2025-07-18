@@ -27,4 +27,4 @@ Main Features
 - UI Pages
   - Case Creation page
   - Case Comment Creation page
-  - Wrokflow Step Code Editor (Python) page 
+  - Workflow Step Code Editor (Python) page 
