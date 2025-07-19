@@ -4,6 +4,18 @@ from nicegui import ui
 
 @ui.page("/ui/create_case")
 def create_case_page():
+    ui.add_head_html('''
+        <style>
+            .no-resize-textarea textarea {
+                resize: none !important;
+                field-sizing: content;                
+            }
+            /* Optional: If you want the Quasar wrapper to also expand to fit */
+            .no-resize-textarea .q-field__control {
+                height: auto !important; /* Allow the wrapper to adjust height */
+            }
+        </style>
+    ''')
     ui.label("Create Case").classes("text-xl font-bold")
     ui.run_javascript('document.title = "Create Case"')
     current_user = ['']
@@ -26,7 +38,7 @@ def create_case_page():
 
     with ui.element('div').classes('flex w-full h-screen'):
         # LEFT PANEL - Dropdowns
-        with ui.column().classes('w-1/2 p-4 bg-gray-100'):
+        with ui.column().classes('w-1/3 p-4 bg-gray-100'):
             ui.label("User and Account Selection").classes("text-xl font-bold")
 
             user_dropdown = ui.select(options=[], label='Select User').classes('w-full')
@@ -71,23 +83,23 @@ def create_case_page():
             ui.timer(0.2, load_accounts, once=True)
 
         # RIGHT PANEL - Case Details
-        with ui.column().classes('w-1/2 p-4 bg-gray-100 h-full'):
+        with ui.column().classes('w-2/3 p-4 bg-gray-100 h-full'):
             ui.label("Case Details").classes("text-2xl font-bold mb-4")
 
             with ui.row().classes("items-center gap-2 mb-4"):
-                ui.label("User").classes("w-24")
-                user_label = ui.label("").classes("bg-gray-200 w-full")
+                ui.label("User").classes("text-md font-medium").style("width: 64px; ")
+                user_label = ui.label("").classes("bg-gray-200 w-full").style("width: 228px; ")
 
             with ui.row().classes("items-center gap-2 mb-4"):
-                ui.label("Account").classes("w-24")
-                account_label = ui.label("").classes("bg-gray-200 w-full")
+                ui.label("Account").classes("text-md font-medium").style("width: 64px; ")
+                account_label = ui.label("").classes("bg-gray-200 w-full").style("width: 228px; ")
 
-            with ui.row().classes("items-center gap-2 mb-4"):
-                ui.label("Summary").classes("w-24")
-                summary = ui.input().classes("bg-gray-200 w-full")
+            with ui.column().classes("w-full mb-4"):
+                ui.label("Summary").classes("text-md font-medium")
+                summary = ui.textarea().classes("w-full bg-gray-200 no-resize-textarea")
 
-            with ui.row().classes("items-start gap-2 mb-4"):
-                ui.label("Description").classes("w-24 pt-1")
-                description = ui.textarea().classes("bg-gray-200 w-full h-32")
+            with ui.column().classes("w-full mb-4"):
+                ui.label("Description").classes("text-md font-medium")
+                description = ui.textarea().classes("w-full bg-gray-200 no-resize-textarea")
 
             ui.button("Create Case", on_click=create_case)

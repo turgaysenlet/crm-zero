@@ -69,6 +69,8 @@ class Server:
         self.router.add_api_route("/api/cases_by_username", self.get_cases_by_username,
                                   response_model=List[CaseApiRecord])
         # GET with id
+        self.router.add_api_route("/api/users/{user_id}", self.get_user_by_id, response_model=UserApiRecord)
+
         self.router.add_api_route("/api/cases/{case_id}", self.get_case_by_id_and_user, response_model=CaseApiRecord,
                                   methods=["GET"])
         self.router.add_api_route("/api/case_comments/{case_comment_id}", self.get_case_comment_by_id_and_user,
@@ -310,6 +312,30 @@ class Server:
                 raise HTTPException(status_code=404, detail=f"No cases found for user '{username}'.")
             db_conn.close()
             return case_api_records
+
+    async def get_user_by_id(
+            self,
+            user_id: uuid.UUID = FastAPIPath(..., description="User ID (UUID)")
+    ) -> UserApiRecord:
+        username = "admin"
+        user: Optional[User] = await self.get_user(username)
+        [db_conn, db_cursor] = self.db.connect()
+        if user is None:
+            db_conn.close()
+            raise HTTPException(status_code=404, detail=f"User '{username}' not found.")
+        else:
+            user_record: UserRecord = self.db.read_object_by_id(db_conn, db_cursor, UserRecord.table_name(), "User",
+                                                                user_id, user)
+            if not user_record:
+                db_conn.close()
+                raise HTTPException(status_code=404, detail=f"No user found for id '{user_id}'.")
+            _user: User = user_record.convert_to_object()
+            user_api_record: UserApiRecord = UserApiRecord.from_object(_user)
+            if not user_api_record:
+                db_conn.close()
+                raise HTTPException(status_code=404, detail=f"No user found for id '{user_id}'.")
+            db_conn.close()
+            return user_api_record
 
     async def get_case_by_id_and_user(
             self,
