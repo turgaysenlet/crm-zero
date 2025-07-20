@@ -4,15 +4,16 @@ from nicegui import ui
 
 @ui.page("/ui/create_case")
 def create_case_page():
+    # Workaround to make sure textarea height and resizer area height always matches.
+    # Otherwise, resizer area height is fixed at 113px, regardless of textarea height.
     ui.add_head_html('''
         <style>
             .no-resize-textarea textarea {
                 resize: none !important;
                 field-sizing: content;                
             }
-            /* Optional: If you want the Quasar wrapper to also expand to fit */
             .no-resize-textarea .q-field__control {
-                height: auto !important; /* Allow the wrapper to adjust height */
+                height: auto !important;
             }
         </style>
     ''')
