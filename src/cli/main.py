@@ -163,11 +163,19 @@ n8n: N8n = N8n(workflow="case-record-and-suggest-solution-with-lookup")
 n8n.run_workflow(sender, "")
 ''')
 
+    workflow7_step: WorkflowStep = WorkflowStep(
+        owner_id=ObjectReference.from_object(support_agent_user1),
+        workflow_step_name="Step7-TemporalWorkflowOnCaseCreation",
+        workflow_step_code='''
+from src.util.temporal_workflow import run_temporal_workflow
+run_temporal_workflow(sender)
+    ''')
+
     workflow1: Workflow = Workflow(owner_id=ObjectReference.from_object(support_agent_user1),
                                    workflow_name="Workflow1",
                                    workflow_step_ids=ObjectReferenceList.from_list(
                                        [workflow1_step, workflow2_step, workflow4_step, workflow5_step,
-                                        workflow6_step]))
+                                        workflow6_step, workflow7_step]))
 
     workflow2: Workflow = Workflow(owner_id=ObjectReference.from_object(support_agent_user1),
                                    workflow_name="Workflow2",
@@ -206,6 +214,7 @@ n8n.run_workflow(sender, "")
     WorkflowStepRecord.from_object(workflow4_step).insert_or_replace_to_db(db_conn, db_cursor)
     WorkflowStepRecord.from_object(workflow5_step).insert_or_replace_to_db(db_conn, db_cursor)
     WorkflowStepRecord.from_object(workflow6_step).insert_or_replace_to_db(db_conn, db_cursor)
+    WorkflowStepRecord.from_object(workflow7_step).insert_or_replace_to_db(db_conn, db_cursor)
 
     WorkflowRecord.from_object(workflow1).insert_or_replace_to_db(db_conn, db_cursor)
     WorkflowRecord.from_object(workflow2).insert_or_replace_to_db(db_conn, db_cursor)
